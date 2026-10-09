@@ -96,7 +96,7 @@ export function GraphExplorer({ snapshot }: { snapshot?: GraphSnapshot }) {
           {GRAPH_LENSES.map((item) => {
             const Icon = lensIcons[item.id];
             const isWorkspaceLens = !live && item.id !== "ontology";
-            return <Link key={item.id} href={`${isWorkspaceLens ? "/graph" : pathname}?lens=${item.id}`} scroll={false} prefetch={false} className={cn("graph-lens", lens === item.id && "graph-lens-active")} aria-current={lens === item.id ? "page" : undefined}><Icon className="size-4" aria-hidden="true" />{item.label}{isWorkspaceLens && <LockKeyhole className="size-3.5" aria-label="Workspace sign-in required" />}</Link>;
+            return <Link key={item.id} href={`${isWorkspaceLens ? "/graph" : pathname}?lens=${item.id}`} scroll={false} prefetch={false} className={cn("graph-lens", lens === item.id && "graph-lens-active")} aria-current={lens === item.id ? "page" : undefined} aria-label={isWorkspaceLens ? `${item.label} (workspace sign-in required)` : undefined}><Icon className="hidden size-4 shrink-0 sm:block" aria-hidden="true" />{item.label}{isWorkspaceLens && <LockKeyhole className="size-3.5 shrink-0" aria-hidden="true" />}</Link>;
           })}
         </nav>
         <p className="text-sm tabular-nums text-muted-foreground">{live ? `${snapshot!.knowledge.length} records · ${snapshot!.agents.length} agents` : `${model.lenses.ontology.children?.length ?? 0} entity types · ${schemaEdges} relationships`}</p>
