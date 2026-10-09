@@ -44,6 +44,11 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Create, import, edit, and export knowledge",
       },
       {
+        href: "/graph",
+        label: "Knowledge Graph",
+        description: "Explore knowledge, agent context, and ontology in 3D",
+      },
+      {
         href: "/agents",
         label: "Agents",
         description: "Manage agents and their roles",

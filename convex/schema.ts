@@ -23,7 +23,7 @@ export default defineSchema({
     allowedAgentIds: v.optional(v.array(v.id("agents"))),
 
 
-  }),
+  }).index("by_organization", ["organizationId"]),
 
   rateLimits: defineTable({
     key: v.string(),
@@ -132,7 +132,7 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("disabled")),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }),
+  }).index("by_organization", ["organizationId"]),
 
   knowledgeVersions: defineTable({
     knowledgeId: v.id("knowledge"),

@@ -193,7 +193,7 @@ export default function HomePage() {
                 variant="outline"
                 className="h-11 w-full border-neutral-700 bg-neutral-950/70 px-5 text-white hover:border-neutral-600 hover:bg-neutral-900 hover:text-white sm:w-auto"
               >
-                <Link href="#workflow">View demo flow</Link>
+                <Link href="/ontology" prefetch={false}>Explore the brain</Link>
               </Button>
             </div>
 

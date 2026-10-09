@@ -3,6 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+vi.mock("next/font/google", () => ({
+  Abel: () => ({ variable: "font-abel" }),
+}));
+
 const mocks = vi.hoisted(() => ({
   client: vi.fn(function (this: { url: string }, url: string) {
     this.url = url;

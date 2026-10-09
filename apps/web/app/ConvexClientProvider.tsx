@@ -66,6 +66,9 @@ export function ConvexClientProvider({ children }: { children: ReactNode }) {
               >
                 Reload
               </button>
+              <Link href="/ontology" className="ak-button-secondary">
+                Explore the schema
+              </Link>
               <Link href="/" className="ak-button-secondary">
                 Back to home
               </Link>

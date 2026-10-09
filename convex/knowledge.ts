@@ -4,6 +4,7 @@ import { requireAdminForIdentity } from "./permissions";
 import { writeAuditLog } from "./audit";
 import { inOrg } from "./tenancy";
 import { rankByRelevance } from "./retrieval";
+import { graphSnapshotArgs, graphSnapshotReturns, readGraphSnapshot } from "./graphSnapshot";
 import {
   LIMITS,
   normalizeSourceUrl,
@@ -79,6 +80,12 @@ export const createKnowledge = mutation({
 
     return knowledgeId;
   },
+});
+
+export const getGraphSnapshot = query({
+  args: graphSnapshotArgs,
+  returns: graphSnapshotReturns,
+  handler: readGraphSnapshot,
 });
 
 export const listKnowledge = query({

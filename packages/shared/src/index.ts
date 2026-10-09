@@ -10,3 +10,11 @@ export type { OrganizationId } from "./tenancy";
 
 export { buildActorArgs } from "./actor";
 export type { ActorArgs, ActorSource } from "./actor";
+
+export { GRAPH_LIMITS } from "./graph";
+export type {
+  GraphAgent,
+  GraphKnowledge,
+  GraphRetrieval,
+  GraphSnapshot,
+} from "./graph";

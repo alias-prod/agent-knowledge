@@ -70,6 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       label: "Knowledge",
       links: [
         { href: "/knowledge", label: "Knowledge" },
+        { href: "/graph", label: "Knowledge Graph" },
         { href: "/agents", label: "Agents" },
         { href: "/approvals", label: "Approvals" },
         { href: "/reviews", label: "Reviews" },
