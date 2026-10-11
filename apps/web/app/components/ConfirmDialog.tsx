@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useId, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -24,30 +33,11 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const [isConfirming, setIsConfirming] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onCancel();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onCancel]);
-
-  useEffect(() => {
-    if (!open) {
-      setIsConfirming(false);
-    }
-  }, [open]);
-
-  if (!open) return null;
+  const openingControl = useRef<HTMLElement | null>(null);
+  const descriptionId = useId();
 
   async function handleConfirm() {
+    if (isConfirming) return;
     try {
       setIsConfirming(true);
       await onConfirm();
@@ -57,70 +47,36 @@ export function ConfirmDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onCancel();
-        }
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirm-dialog-title"
-        aria-describedby={description ? "confirm-dialog-description" : undefined}
-        className="w-full max-w-md rounded-2xl border border-neutral-800 bg-[#0b0b0b] p-6 text-white shadow-2xl shadow-black/50"
+    <Dialog open={open} onOpenChange={(value) => { if (!value && !isConfirming) onCancel(); }}>
+      <DialogContent
+        showCloseButton={false}
+        aria-describedby={description ? descriptionId : undefined}
+        onOpenAutoFocus={() => {
+          openingControl.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (openingControl.current?.isConnected) openingControl.current.focus();
+        }}
       >
-        <div
-          className={
-            tone === "danger"
-              ? "mb-5 h-1 w-14 rounded-full bg-red-400/80"
-              : "mb-5 h-1 w-14 rounded-full bg-neutral-700"
-          }
-        />
-
-        <h2
-          id="confirm-dialog-title"
-          className="text-lg font-semibold tracking-tight text-white"
-        >
-          {title}
-        </h2>
-
-        {description && (
-          <p
-            id="confirm-dialog-description"
-            className="mt-3 text-sm leading-6 text-neutral-400"
-          >
-            {description}
-          </p>
-        )}
-
-        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isConfirming}
-            className="ak-button-secondary justify-center"
-          >
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isConfirming}>
             {cancelLabel}
-          </button>
-
-          <button
+          </Button>
+          <Button
             type="button"
+            variant={tone === "danger" ? "destructive" : "default"}
             onClick={handleConfirm}
             disabled={isConfirming}
-            className={
-              tone === "danger"
-                ? "ak-button-danger justify-center"
-                : "ak-button-primary justify-center"
-            }
           >
-            {isConfirming ? "Working..." : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+            {isConfirming ? "Working…" : confirmLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

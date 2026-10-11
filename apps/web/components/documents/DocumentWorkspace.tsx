@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useConvexAuth, useQuery } from "convex/react";
@@ -39,6 +39,7 @@ function WorkspaceContent({ organizationId, listing }: { organizationId: string;
   const deferredSearch = useDeferredValue(search.toLocaleLowerCase());
   const [newOpen, setNewOpen] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
+  const newDocumentControl = useRef<HTMLButtonElement>(null);
   const filtered = useMemo(() => listing.documents.filter((doc) => (type === "all" || doc.documentType === type) &&
     [doc.title, doc.category, doc.excerpt].join(" ").toLocaleLowerCase().includes(deferredSearch)), [listing.documents, deferredSearch, type]);
   const rows = useMemo(() => documentTree(filtered), [filtered]);
@@ -49,7 +50,7 @@ function WorkspaceContent({ organizationId, listing }: { organizationId: string;
         <div><p className="text-sm uppercase tracking-widest text-muted-foreground">{listing.organizationName} / Workspace</p><h1 className="mt-2 font-display text-4xl tracking-wide text-balance">Documents</h1><p className="mt-2 text-sm leading-6 text-muted-foreground">Collaborative documents, connected to your knowledge graph and ontology.</p></div>
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="outline"><Link href="/graph" prefetch={false}><Network data-icon="inline-start" aria-hidden="true" />Ontology Explorer</Link></Button>
-          {listing.canEdit && <Button onClick={() => setNewOpen(true)}><FilePlus2 data-icon="inline-start" aria-hidden="true" />New Document</Button>}
+          {listing.canEdit && <Button ref={newDocumentControl} onClick={() => setNewOpen(true)}><FilePlus2 data-icon="inline-start" aria-hidden="true" />New Document</Button>}
         </div>
       </header>
       <div className="document-workbench">
@@ -76,7 +77,7 @@ function WorkspaceContent({ organizationId, listing }: { organizationId: string;
         </section>
       </div>
       <footer className="document-workspace-footer"><span className="flex items-center gap-2"><ShieldCheck className="size-4" aria-hidden="true" />One workspace. The same knowledge, permissions, and audit trail.</span><a href="https://github.com/DataRohit/Stash" target="_blank" rel="noopener noreferrer" className="document-text-link">Adapted from Stash</a></footer>
-      <NewDocumentDialog open={newOpen} onOpenChange={setNewOpen} organizationId={organizationId} documents={listing.documents} onCreated={(id) => { updateDocumentParams({ doc: id, q: null, type: null }, true); setTreeOpen(false); }} />
+      <NewDocumentDialog open={newOpen} onOpenChange={setNewOpen} organizationId={organizationId} documents={listing.documents} fallbackFocusRef={newDocumentControl} onCreated={(id) => { updateDocumentParams({ doc: id, q: null, type: null }, true); setTreeOpen(false); }} />
     </div>
   );
 }

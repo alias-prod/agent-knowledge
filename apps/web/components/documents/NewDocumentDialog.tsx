@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type RefObject } from "react";
 import { useMutation } from "convex/react";
 import { Upload } from "lucide-react";
 import { DOCUMENT_LIMITS, KNOWLEDGE_TYPES, type KnowledgeType } from "@agent-knowledge/shared";
@@ -12,9 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel, FieldDescription, FieldError } from "@/components/ui/field";
 
-export function NewDocumentDialog({ open, onOpenChange, organizationId, documents, onCreated }: {
+export function NewDocumentDialog({ open, onOpenChange, organizationId, documents, onCreated, fallbackFocusRef }: {
   open: boolean; onOpenChange: (open: boolean) => void; organizationId: string;
   documents: DocumentSummary[]; onCreated: (id: string) => void;
+  fallbackFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const create = useMutation(api.knowledge.createDocument);
   const [title, setTitle] = useState("");
@@ -26,9 +27,11 @@ export function NewDocumentDialog({ open, onOpenChange, organizationId, document
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const titleInput = useRef<HTMLInputElement>(null);
+  const openingControl = useRef<HTMLElement | null>(null);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (busy) return;
     if (!title.trim()) { setError("Enter a document title."); titleInput.current?.focus(); return; }
     setBusy(true); setError("");
     try {
@@ -53,7 +56,17 @@ export function NewDocumentDialog({ open, onOpenChange, organizationId, document
 
   return (
     <Dialog open={open} onOpenChange={(value) => { if (!busy) onOpenChange(value); }}>
-      <DialogContent><DialogHeader><DialogTitle>New Document</DialogTitle><DialogDescription>Create connected knowledge. New documents start as drafts and are not available to agents until reviewed and assigned.</DialogDescription></DialogHeader>
+      <DialogContent
+        showCloseButton={!busy}
+        onOpenAutoFocus={() => {
+          openingControl.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const target = openingControl.current?.isConnected ? openingControl.current : fallbackFocusRef?.current;
+          target?.focus();
+        }}
+      ><DialogHeader><DialogTitle>New Document</DialogTitle><DialogDescription>Create connected knowledge. New documents start as drafts and are not available to agents until reviewed and assigned.</DialogDescription></DialogHeader>
         <form className="flex flex-col gap-6" onSubmit={submit}>
           <FieldGroup>
             <Field data-invalid={Boolean(error)}><FieldLabel htmlFor="new-document-title">Title</FieldLabel><Input ref={titleInput} id="new-document-title" value={title} maxLength={DOCUMENT_LIMITS.title} onChange={(event) => setTitle(event.target.value)} placeholder="Customer onboarding playbook…" aria-describedby={error ? "new-document-error" : undefined} aria-invalid={Boolean(error)} disabled={busy} /></Field>
