@@ -1,3 +1,5 @@
+import type { KnowledgeType, RelationshipKind } from "./documents";
+
 export const GRAPH_LIMITS = {
   knowledge: 120,
   agents: 60,
@@ -15,6 +17,9 @@ export type GraphKnowledge = {
   requiresApproval: boolean;
   allowedAgentIds: string[];
   sourceUrl?: string;
+  documentType?: KnowledgeType;
+  parentId?: string;
+  relations?: { targetId: string; kind: RelationshipKind }[];
   updatedAt: number;
 };
 

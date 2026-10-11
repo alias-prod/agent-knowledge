@@ -39,14 +39,19 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Knowledge",
     links: [
       {
+        href: "/documents",
+        label: "Documents",
+        description: "Write collaboratively and connect documents to the knowledge graph",
+      },
+      {
         href: "/knowledge",
         label: "Knowledge",
         description: "Create, import, edit, and export knowledge",
       },
       {
         href: "/graph",
-        label: "Knowledge Graph",
-        description: "Explore knowledge, agent context, and ontology in 3D",
+        label: "Ontology Explorer",
+        description: "Explore connected documents, agent context, and the knowledge ontology",
       },
       {
         href: "/agents",

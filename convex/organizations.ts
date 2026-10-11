@@ -19,7 +19,7 @@ export const getOrganizationSettings = query({
     return (
       settings ?? {
         organizationId: args.organizationId,
-        displayName: "Agent Knowledge Workspace",
+        displayName: "ALIAS UCE Workspace",
         defaultKnowledgeCategory: "Company Policy",
         defaultKnowledgeStatus: "draft" as const,
         defaultCanUseToAnswer: true,
@@ -59,7 +59,7 @@ export const updateOrganizationSettings = mutation({
       organizationId: args.organizationId,
       displayName:
         optionalText(args.displayName, "Display name", LIMITS.name) ??
-        "Agent Knowledge Workspace",
+        "ALIAS UCE Workspace",
       defaultKnowledgeCategory:
         optionalText(
           args.defaultKnowledgeCategory,

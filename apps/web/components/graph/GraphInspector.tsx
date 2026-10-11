@@ -40,7 +40,8 @@ export function GraphInspector({ node, model, onSelect, onFocus }: { node?: Expl
           )}
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => onFocus(node.id)}><Focus data-icon="inline-start" aria-hidden="true" />Focus Node</Button>
-            {node.href && <Button asChild><Link href={node.href} prefetch={false}>Open Record<ArrowRight data-icon="inline-end" aria-hidden="true" /></Link></Button>}
+            {node.documentHref && <Button asChild><Link href={node.documentHref} prefetch={false}>Open Document<ArrowRight data-icon="inline-end" aria-hidden="true" /></Link></Button>}
+            {node.href && <Button asChild variant={node.documentHref ? "outline" : "default"}><Link href={node.href} prefetch={false}>{node.documentHref ? "Governance Record" : "Open Record"}<ArrowRight data-icon="inline-end" aria-hidden="true" /></Link></Button>}
             {node.sourceUrl && <Button asChild variant="outline"><a href={node.sourceUrl} target="_blank" rel="noopener noreferrer">Original Source<ExternalLink data-icon="inline-end" aria-hidden="true" /></a></Button>}
           </div>
           <div>

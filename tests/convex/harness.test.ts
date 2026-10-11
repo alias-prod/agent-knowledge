@@ -15,7 +15,7 @@ describe("convex-test harness", () => {
     });
 
     expect(settings.organizationId).toBe("org_harness");
-    expect(settings.displayName).toBe("Agent Knowledge Workspace");
+    expect(settings.displayName).toBe("ALIAS UCE Workspace");
   });
 
   test("returns rows seeded through the test database", async () => {
@@ -23,6 +23,8 @@ describe("convex-test harness", () => {
     const now = Date.now();
 
     await t.run(async (ctx) => {
+      const userId = await ctx.db.insert("users", { workosUserId: "harness-user", email: "harness@example.com", createdAt: now, updatedAt: now });
+      await ctx.db.insert("memberships", { userId, organizationId: "org_harness", role: "member", createdAt: now, updatedAt: now });
       await ctx.db.insert("knowledge", {
         title: "Refund policy",
         content: "Refunds are issued within 30 days.",
@@ -34,7 +36,7 @@ describe("convex-test harness", () => {
       });
     });
 
-    const items = await t.query(api.knowledge.listKnowledge, {
+    const items = await t.withIdentity({ subject: "harness-user" }).query(api.knowledge.listKnowledge, {
       organizationId: "org_harness",
     });
 

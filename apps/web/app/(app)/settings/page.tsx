@@ -39,7 +39,7 @@ export default function SettingsPage() {
   );
 
   const displayName =
-    displayNameInput ?? settings?.displayName ?? "Agent Knowledge Workspace";
+    displayNameInput ?? settings?.displayName ?? "ALIAS UCE Workspace";
 
   const defaultCategory =
     defaultCategoryInput ??
@@ -144,7 +144,7 @@ export default function SettingsPage() {
                   value={displayName}
                   onChange={(e) => setDisplayNameInput(e.target.value)}
                   className="ak-input mt-2"
-                  placeholder="Agent Knowledge Workspace"
+                  placeholder="ALIAS UCE Workspace"
                   disabled={!canManage}
                 />
               </div>

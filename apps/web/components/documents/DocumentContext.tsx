@@ -1,0 +1,27 @@
+"use client";
+
+import Link from "next/link";
+import { useQuery } from "convex/react";
+import { ArrowDownLeft, ArrowUpRight, Bot, GitBranch, Network, ShieldCheck } from "lucide-react";
+import { documentHref, RELATIONSHIP_KINDS } from "@agent-knowledge/shared";
+import { api } from "../../../../convex/_generated/api";
+import type { DocumentListing, WorkspaceDocument } from "@/lib/documents";
+import { Button } from "@/components/ui/button";
+import { safeSourceUrl } from "@/lib/graph";
+
+export function DocumentContext({ document, organizationId, listing, onEdit }: { document: WorkspaceDocument; organizationId: string; listing: DocumentListing; onEdit: () => void }) {
+  const connections = useQuery(api.knowledge.findDocumentConnections, { organizationId, id: document.id });
+  const source = safeSourceUrl(document.sourceUrl);
+  const parent = listing.documents.find((row) => row.id === document.parentId);
+  const eligible = document.status === "verified" && document.canUseToAnswer && !document.requiresApproval && document.allowedAgentIds.length > 0;
+  return (
+    <aside className="document-context" aria-labelledby="document-context-title">
+      <header className="document-context-heading"><Network className="size-4 text-primary" aria-hidden="true" /><h3 id="document-context-title">Knowledge Context</h3></header>
+      <section className="document-context-section"><h4 className="document-section-title"><GitBranch className="size-4" aria-hidden="true" />Ontology</h4><dl className="document-properties-list"><div><dt>Entity</dt><dd>Knowledge</dd></div><div><dt>Type</dt><dd className="capitalize">{document.documentType}</dd></div><div><dt>Category</dt><dd>{document.category}</dd></div><div><dt>Parent</dt><dd>{parent ? <Link href={documentHref(parent.id)} prefetch={false} className="document-text-link">{parent.title}</Link> : document.parentId ? <Link href={documentHref(document.parentId)} prefetch={false} className="document-text-link">Open Parent</Link> : "Workspace root"}</dd></div></dl><Link href="/graph?lens=ontology&node=type%3Aknowledge&view=list" prefetch={false} className="document-text-link">Inspect Knowledge Schema<ArrowUpRight className="size-4" aria-hidden="true" /></Link></section>
+      <section className="document-context-section"><h4 className="document-section-title"><ArrowUpRight className="size-4" aria-hidden="true" />Linked Knowledge</h4>{connections === undefined ? <p className="text-sm text-muted-foreground" role="status">Loading connections…</p> : !connections.outgoing.length ? <p className="text-sm leading-6 text-muted-foreground">No relationships yet. Link supporting documents or dependencies.</p> : <ul className="flex flex-col gap-3">{connections.outgoing.map((target) => <li key={`${target.id}:${target.kind}`}><span className="block text-sm text-muted-foreground">{RELATIONSHIP_KINDS.find((kind) => kind.id === target.kind)?.label}</span><Link href={documentHref(target.id)} prefetch={false} className="document-text-link">{target.title}</Link></li>)}</ul>}{document.canEdit && <Button variant="outline" size="sm" onClick={onEdit}>Manage Relationships</Button>}</section>
+      <section className="document-context-section"><h4 className="document-section-title"><ArrowDownLeft className="size-4" aria-hidden="true" />Backlinks</h4>{connections?.incoming.length ? <ul className="flex flex-col gap-3">{connections.incoming.map((target) => <li key={`${target.id}:${target.kind}`}><span className="block text-sm text-muted-foreground">{RELATIONSHIP_KINDS.find((kind) => kind.id === target.kind)?.inverse}</span><Link href={documentHref(target.id)} prefetch={false} className="document-text-link">{target.title}</Link></li>)}</ul> : <p className="text-sm leading-6 text-muted-foreground">{connections ? "No incoming links in the current workspace view." : "Loading backlinks…"}</p>}{connections?.truncated && <p className="text-sm leading-6 text-muted-foreground">Backlinks scan the 200 newest workspace documents.</p>}</section>
+      <section className="document-context-section"><h4 className="document-section-title"><Bot className="size-4" aria-hidden="true" />Agent Access</h4><p className="text-sm leading-6 text-muted-foreground">{eligible ? "Verified, approved, and enabled for answers by assigned agents." : "Not ready for agent answers. Verification, approval, answer permission, and assignment are all required."}</p><dl className="document-properties-list"><div><dt>Answer permission</dt><dd>{document.canUseToAnswer ? "Enabled" : "Disabled"}</dd></div><div><dt>Action permission</dt><dd>{document.canUseToAct ? "Enabled" : "Disabled"}</dd></div></dl>{document.allowedAgentIds.length ? <ul className="flex flex-col gap-2">{document.allowedAgentIds.map((id) => <li key={id}><Link href={`/agents/${id}`} prefetch={false} className="document-text-link">{listing.agents.find((agent) => agent.id === id)?.name || "Assigned Agent"}</Link></li>)}</ul> : <p className="text-sm text-muted-foreground">No agents assigned.</p>}<Link href={`/knowledge/${document.id}`} prefetch={false} className="document-text-link"><ShieldCheck className="size-4" aria-hidden="true" />Open Governance Record</Link></section>
+      {source && <section className="document-context-section"><h4 className="document-section-title">Provenance</h4><a href={source} target="_blank" rel="noopener noreferrer" className="document-text-link">Open Original Source<ArrowUpRight className="size-4" aria-hidden="true" /></a></section>}
+    </aside>
+  );
+}

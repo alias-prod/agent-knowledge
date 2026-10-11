@@ -72,6 +72,16 @@ describe("graph explorer controls", () => {
     expect(screen.getByRole("list", { name: "Graph nodes" })).toBeInTheDocument();
   });
 
+  test("opens the selected knowledge record in the integrated document editor", () => {
+    const snapshot: GraphSnapshot = { organizationId: "org-a", organizationName: "Context workspace", knowledge: [{ id: "policy", title: "Access policy", summary: "Review access", category: "Policy", status: "draft", documentType: "policy", canUseToAnswer: false, canUseToAct: false, requiresApproval: true, allowedAgentIds: [], updatedAt: 1 }], agents: [], retrievals: [], truncated: { knowledge: false, agents: false, retrievals: false } };
+    window.history.replaceState(null, "", "/graph?lens=knowledge&view=list&node=knowledge%3Apolicy");
+    render(<GraphExplorer snapshot={snapshot} />);
+    const inspector = screen.getByRole("region", { name: "Node Inspector" });
+    expect(within(inspector).getByRole("link", { name: "Open Document" })).toHaveAttribute("href", "/documents?doc=policy");
+    expect(within(inspector).getByRole("link", { name: "Governance Record" })).toHaveAttribute("href", "/knowledge/policy");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Ontology Explorer");
+  });
+
   test("renders the live empty state without substituting demo records", () => {
     const snapshot: GraphSnapshot = { organizationId: "empty", organizationName: "Empty workspace", knowledge: [], agents: [], retrievals: [], truncated: { knowledge: false, agents: false, retrievals: false } };
     window.history.replaceState(null, "", "/graph?lens=knowledge");

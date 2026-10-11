@@ -38,6 +38,25 @@ describe("company brain graph adapter", () => {
     expect(edges.some((edge) => edge.source.startsWith("retrieval:") && edge.target.startsWith("knowledge:"))).toBe(false);
   });
 
+  test("connects document relationships and hierarchy without inventing missing links", () => {
+    const connected: GraphSnapshot = { ...snapshot, knowledge: snapshot.knowledge.map((item) => item.id === "draft" ? {
+      ...item, documentType: "playbook", parentId: "policy", relations: [
+        { targetId: "policy", kind: "depends_on" },
+        { targetId: "policy", kind: "depends_on" },
+        { targetId: "missing", kind: "references" },
+        { targetId: "draft", kind: "references" },
+      ],
+    } : item) };
+    const graph = buildGraphModel(connected);
+    expect(graph.edges).toContainEqual(expect.objectContaining({ source: "knowledge:draft", target: "knowledge:policy", label: "nested in" }));
+    expect(graph.edges.filter((edge) => edge.source === "knowledge:draft" && edge.label === "depends on")).toHaveLength(1);
+    expect(graph.edges.some((edge) => edge.target === "knowledge:missing" || edge.source === "knowledge:draft" && edge.target === "knowledge:draft")).toBe(false);
+    expect(graph.index.get("knowledge:draft")?.node.documentHref).toBe("/documents?doc=draft");
+    expect(graph.index.get("knowledge:draft")?.node.facts).toContainEqual({ label: "Knowledge type", value: "Playbook" });
+    expect(graph.index.has("type:knowledge:field:documentType")).toBe(true);
+    expect(graph.index.has("type:knowledge:field:relations")).toBe(true);
+  });
+
   test("keeps usage flags, verification, and approval separate", () => {
     const graph = buildGraphModel(snapshot);
     expect(graph.index.get("context:answers")?.node.children?.map((node) => node.entityId)).toEqual(["knowledge:policy"]);

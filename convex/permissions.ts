@@ -24,6 +24,14 @@ export async function getMembershipForWorkosUser(
   return membership;
 }
 
+export async function requireMembershipForIdentity(ctx: Ctx, organizationId: string) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity || !organizationId || organizationId.length > 256) throw new Error("Unauthorized");
+  const membership = await getMembershipForWorkosUser(ctx, identity.subject, organizationId);
+  if (!membership) throw new Error("Unauthorized");
+  return { identity, membership };
+}
+
 export async function requireAdminForWorkosUser(
   ctx: Ctx,
   workosUserId: string,

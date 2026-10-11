@@ -1,6 +1,7 @@
 import type { Brain, BrainNode } from "company-brain-3d";
-import type { GraphKnowledge, GraphSnapshot } from "@agent-knowledge/shared";
+import { documentHref, KNOWLEDGE_TYPES, RELATIONSHIP_KINDS, type GraphKnowledge, type GraphSnapshot } from "@agent-knowledge/shared";
 import { ONTOLOGY_ENTITIES } from "./graph-ontology";
+import { PRODUCT_SHORT_NAME } from "./brand";
 
 export type GraphLens = "knowledge" | "context" | "ontology";
 export type GraphStatus = "all" | "verified" | "draft";
@@ -9,7 +10,7 @@ export type NodeKind = "group" | "category" | "knowledge" | "agent" | "retrieval
 export const GRAPH_LENSES: { id: GraphLens; label: string; description: string }[] = [
   { id: "knowledge", label: "Knowledge", description: "Your records, organized by category." },
   { id: "context", label: "Context", description: "Agent assignments, usage permissions, and retrieval activity." },
-  { id: "ontology", label: "Ontology", description: "The entity types and relationships behind your company brain." },
+  { id: "ontology", label: "Ontology", description: "The entity types and relationships behind your context engine." },
 ];
 
 export interface ExplorerNode extends BrainNode {
@@ -17,6 +18,7 @@ export interface ExplorerNode extends BrainNode {
   entityId?: string;
   status?: GraphKnowledge["status"];
   href?: string;
+  documentHref?: string;
   sourceUrl?: string;
   facts?: { label: string; value: string }[];
   children?: ExplorerNode[];
@@ -96,9 +98,11 @@ function knowledgeNode(item: GraphKnowledge): ExplorerNode {
     status: item.status,
     value: item.status === "verified" ? "Verified" : "Draft",
     href: `/knowledge/${encodeURIComponent(item.id)}`,
+    documentHref: documentHref(item.id),
     sourceUrl: safeSourceUrl(item.sourceUrl),
     facts: [
       { label: "Category", value: item.category || "Uncategorized" },
+      { label: "Knowledge type", value: KNOWLEDGE_TYPES.find((type) => type.id === item.documentType)?.label ?? "Document" },
       { label: "Verification", value: item.status },
       { label: "Answer permission", value: item.canUseToAnswer ? "Enabled" : "Not enabled" },
       { label: "Action permission", value: item.canUseToAct ? "Enabled" : "Not enabled" },
@@ -117,6 +121,22 @@ export function buildGraphModel(snapshot?: GraphSnapshot): GraphModel {
   const knowledgeById = new Map(knowledge.map((node) => [node.id, node]));
   const agentIds = new Set((snapshot?.agents ?? []).map((agent) => agent.id));
   const categories = new Map<string, ExplorerNode[]>();
+
+  for (const item of snapshot?.knowledge ?? []) {
+    const source = `knowledge:${item.id}`;
+    if (item.parentId && item.parentId !== item.id && knowledgeById.has(`knowledge:${item.parentId}`)) {
+      edges.push({ source, target: `knowledge:${item.parentId}`, label: "nested in", description: "The parent document explicitly stored on this knowledge record." });
+    }
+    const seen = new Set<string>();
+    for (const relation of item.relations ?? []) {
+      const target = `knowledge:${relation.targetId}`;
+      const kind = RELATIONSHIP_KINDS.find((kind) => kind.id === relation.kind);
+      const key = `${relation.kind}:${target}`;
+      if (!kind || source === target || !knowledgeById.has(target) || seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ source, target, label: kind.label.toLowerCase(), description: "An explicit document relationship, shared with the document workspace and its backlinks." });
+    }
+  }
 
   for (const node of knowledge) {
     const category = node.facts?.[0].value ?? "Uncategorized";
@@ -225,7 +245,7 @@ export function buildGraphModel(snapshot?: GraphSnapshot): GraphModel {
     node.children?.forEach((child) => visit(child, lens, nextPath));
   }
   for (const lens of GRAPH_LENSES) visit(lenses[lens.id], lens.id, []);
-  return { title: snapshot?.organizationName || "Company Brain", lenses, index, edges };
+  return { title: snapshot?.organizationName || PRODUCT_SHORT_NAME, lenses, index, edges };
 }
 
 export function filterGraphTree(root: ExplorerNode, search: string, status: GraphStatus): ExplorerNode {

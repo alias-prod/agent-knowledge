@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { documentHref, documentGraphHref } from "@agent-knowledge/shared";
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { getCurrentOrgId } from "@/lib/org";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { canManageKnowledge } from "@/lib/role";
@@ -18,22 +19,26 @@ export default function KnowledgeDetailPage() {
     const params = useParams();
     const id = params.id as Id<"knowledge">;
 
-    const item = useQuery(api.knowledge.getKnowledge, { id });
+    const auth = useAuth();
+    const { user } = auth;
+    const { isAuthenticated } = useConvexAuth();
+    const organization = "organizationId" in auth ? auth.organizationId : undefined;
+    const organizationId = getCurrentOrgId(typeof organization === "string" ? organization : undefined);
+    const item = useQuery(api.knowledge.getKnowledge, isAuthenticated ? { id } : "skip");
     const agents = useQuery(api.agents.listAgents, {
-        organizationId: DEFAULT_ORG_ID,
+        organizationId,
     });
 
-    const auditLogs = useQuery(api.knowledge.listAuditLogsForKnowledge, {
+    const auditLogs = useQuery(api.knowledge.listAuditLogsForKnowledge, isAuthenticated ? {
         knowledgeId: id,
-        organizationId: DEFAULT_ORG_ID,
-    });
+        organizationId,
+    } : "skip");
 
-    const versions = useQuery(api.knowledge.listVersionsForKnowledge, {
+    const versions = useQuery(api.knowledge.listVersionsForKnowledge, isAuthenticated ? {
         knowledgeId: id,
-        organizationId: DEFAULT_ORG_ID,
-    });
+        organizationId,
+    } : "skip");
 
-    const { user } = useAuth();
     const currentRole = useCurrentRole();
     const { showToast } = useToast();
     const canManage = canManageKnowledge(currentRole);
@@ -86,6 +91,10 @@ export default function KnowledgeDetailPage() {
                             <span className={`${item.status === "verified" ? "ak-status-success" : "ak-status-warning"} w-fit shrink-0`}>
                                 {item.status}
                             </span>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <Link href={documentHref(id)} prefetch={false} className="ak-button-secondary">Open Document</Link>
+                            <Link href={documentGraphHref(id)} prefetch={false} className="ak-button-secondary">View in Ontology Explorer</Link>
                         </div>
                     </header>
 
@@ -322,7 +331,7 @@ export default function KnowledgeDetailPage() {
             await restoreKnowledgeVersion({
                 versionId,
                 actorEmail: user?.email ?? "unknown-user",
-                organizationId: DEFAULT_ORG_ID,
+                organizationId,
                 workosUserId: user?.id ?? "",
             });
 

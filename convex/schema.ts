@@ -21,9 +21,18 @@ export default defineSchema({
     canUseToAnswer: v.optional(v.boolean()),
     requiresApproval: v.optional(v.boolean()),
     allowedAgentIds: v.optional(v.array(v.id("agents"))),
-
-
-  }).index("by_organization", ["organizationId"]),
+    documentType: v.optional(v.union(v.literal("document"), v.literal("policy"), v.literal("playbook"), v.literal("decision"), v.literal("reference"))),
+    parentId: v.optional(v.id("knowledge")),
+    relations: v.optional(v.array(v.object({
+      targetId: v.id("knowledge"),
+      kind: v.union(v.literal("references"), v.literal("depends_on"), v.literal("supersedes")),
+    }))),
+    collaborationState: v.optional(v.bytes()),
+    metadataRevision: v.optional(v.number()),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_parent", ["organizationId", "parentId"])
+    .searchIndex("search_content", { searchField: "content", filterFields: ["organizationId"] }),
 
   rateLimits: defineTable({
     key: v.string(),
@@ -143,6 +152,6 @@ export default defineSchema({
     changedByEmail: v.optional(v.string()),
     organizationId: v.optional(v.string()),
     createdAt: v.number(),
-  }),
+  }).index("by_knowledge", ["knowledgeId"]),
 
 });

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { GRAPH_LIMITS, type GraphSnapshot } from "@agent-knowledge/shared";
+import { DOCUMENT_LIMITS, GRAPH_LIMITS, type GraphSnapshot } from "@agent-knowledge/shared";
+import { documentTypeValidator } from "./documentModel";
 import type { QueryCtx } from "./_generated/server";
 import { getMembershipForWorkosUser } from "./permissions";
 
@@ -19,6 +20,12 @@ export const graphSnapshotReturns = v.object({
     requiresApproval: v.boolean(),
     allowedAgentIds: v.array(v.string()),
     sourceUrl: v.optional(v.string()),
+    documentType: documentTypeValidator,
+    parentId: v.optional(v.string()),
+    relations: v.array(v.object({
+      targetId: v.string(),
+      kind: v.union(v.literal("references"), v.literal("depends_on"), v.literal("supersedes")),
+    })),
     updatedAt: v.number(),
   })),
   agents: v.array(v.object({
@@ -39,7 +46,7 @@ export const graphSnapshotReturns = v.object({
   truncated: v.object({ knowledge: v.boolean(), agents: v.boolean(), retrievals: v.boolean() }),
 });
 
-export async function readGraphSnapshot(ctx: QueryCtx, args: { organizationId: string }): Promise<GraphSnapshot> {
+export async function readGraphSnapshot(ctx: QueryCtx, args: { organizationId: string }) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity || !args.organizationId || args.organizationId.length > 256) throw new Error("Unauthorized");
 
@@ -55,11 +62,13 @@ export async function readGraphSnapshot(ctx: QueryCtx, args: { organizationId: s
 
   const agents = agentRows.slice(0, GRAPH_LIMITS.agents);
   const visibleAgentIds = new Set(agents.map((agent) => String(agent._id)));
+  const knowledge = knowledgeRows.slice(0, GRAPH_LIMITS.knowledge);
+  const visibleKnowledgeIds = new Set(knowledge.map((item) => String(item._id)));
 
   return {
     organizationId: args.organizationId,
-    organizationName: settings?.displayName || "Company Brain",
-    knowledge: knowledgeRows.slice(0, GRAPH_LIMITS.knowledge).map((item) => ({
+    organizationName: settings?.displayName || "ALIAS UCE Workspace",
+    knowledge: knowledge.map((item) => ({
       id: item._id,
       title: item.title,
       summary: item.content.slice(0, 600),
@@ -70,6 +79,10 @@ export async function readGraphSnapshot(ctx: QueryCtx, args: { organizationId: s
       requiresApproval: item.requiresApproval === true,
       allowedAgentIds: [...new Set(item.allowedAgentIds ?? [])].filter((id) => visibleAgentIds.has(id)),
       ...(item.sourceUrl ? { sourceUrl: item.sourceUrl } : {}),
+      documentType: item.documentType ?? "document",
+      ...(item.parentId && item.parentId !== item._id && visibleKnowledgeIds.has(item.parentId) ? { parentId: item.parentId } : {}),
+      relations: (item.relations ?? []).slice(0, DOCUMENT_LIMITS.relations)
+        .filter((relation) => relation.targetId !== item._id && visibleKnowledgeIds.has(relation.targetId)),
       updatedAt: item.updatedAt,
     })),
     agents: agents.map((agent) => ({
@@ -92,5 +105,5 @@ export async function readGraphSnapshot(ctx: QueryCtx, args: { organizationId: s
       agents: agentRows.length > GRAPH_LIMITS.agents,
       retrievals: retrievalRows.length > GRAPH_LIMITS.retrievals,
     },
-  };
+  } satisfies GraphSnapshot;
 }

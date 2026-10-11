@@ -1,12 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import { Abel } from "next/font/google";
+import { PRODUCT_DESCRIPTION, PRODUCT_NAME, PRODUCT_SHORT_NAME } from "@/lib/brand";
 import "./globals.css";
 
 const abel = Abel({ weight: "400", subsets: ["latin"], variable: "--font-abel", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Agent Knowledge",
-  description: "Explore, govern, and connect your company knowledge, agent context, and ontology.",
+  title: { default: PRODUCT_NAME, template: `%s | ${PRODUCT_SHORT_NAME}` },
+  description: PRODUCT_DESCRIPTION,
+  applicationName: PRODUCT_NAME,
+  openGraph: {
+    title: PRODUCT_NAME,
+    description: PRODUCT_DESCRIPTION,
+    siteName: PRODUCT_NAME,
+    type: "website",
+  },
+  twitter: { card: "summary", title: PRODUCT_NAME, description: PRODUCT_DESCRIPTION },
 };
 
 export const viewport: Viewport = {

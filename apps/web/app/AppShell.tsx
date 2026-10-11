@@ -9,6 +9,9 @@ import { api } from "../../../convex/_generated/api";
 import { getCurrentOrgId } from "@/lib/org";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { CommandPalette } from "./components/CommandPalette";
+import { BrandLockup } from "@/components/BrandLockup";
+import { PRODUCT_NAME } from "@/lib/brand";
+import { NAV_GROUPS } from "@/lib/nav";
 
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -55,36 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }`;
   }
 
-  const navGroups = [
-    {
-      label: "Workspace",
-      links: [
-        { href: "/dashboard", label: "Dashboard" },
-        { href: "/ask", label: "Ask" },
-        { href: "/retrieval-history", label: "Retrieval History" },
-        { href: "/search", label: "Search" },
-      ],
-    },
-    
-    {
-      label: "Knowledge",
-      links: [
-        { href: "/knowledge", label: "Knowledge" },
-        { href: "/graph", label: "Knowledge Graph" },
-        { href: "/agents", label: "Agents" },
-        { href: "/approvals", label: "Approvals" },
-        { href: "/reviews", label: "Reviews" },
-        { href: "/audit", label: "Audit Logs" },
-      ],
-    },
-    {
-      label: "Admin",
-      links: [
-        { href: "/members", label: "Members" },
-        { href: "/settings", label: "Settings" },
-      ],
-    },
-  ];
+  const navGroups = NAV_GROUPS;
 
 
   return (
@@ -94,14 +68,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="grid min-h-screen md:grid-cols-[280px_1fr]">
         <aside className="border-b border-neutral-800/90 bg-[#080808]/95 p-4 backdrop-blur-xl md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-b-0 md:border-r md:p-6">
           <div className="rounded-2xl border border-neutral-800/90 bg-[#0b0b0b] p-4 shadow-sm shadow-black/20">
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-neutral-500">
-              Agent Knowledge
-            </p>
-            <h1 className="mt-1.5 text-xl font-semibold tracking-tight text-white">
-              Company Brain
-            </h1>
-            <p className="mt-2 text-xs leading-5 text-neutral-500">
-              Trusted knowledge for agents
+            <Link href="/" aria-label={`${PRODUCT_NAME} home`} className="block rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
+              <BrandLockup stacked />
+            </Link>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Connected knowledge. Governed context.
             </p>
 
             <div className="mt-4 inline-flex items-center gap-1 rounded-lg border border-neutral-800 bg-[#080808] px-2 py-1 text-xs text-neutral-500">
@@ -127,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <p className="px-3 text-xs font-medium uppercase tracking-[0.14em] text-neutral-600">
                     {group.label}
                   </p>
-                  <div className="mt-2 grid grid-cols-2 gap-1.5 md:block md:space-y-1.5">
+                  <div className="mt-2 grid grid-cols-2 gap-1.5 md:flex md:flex-col">
                     {group.links.map((link) => (
                       <Link
                         key={link.href}

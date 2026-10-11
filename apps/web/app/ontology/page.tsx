@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowLeft, Network } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { BrandLockup } from "@/components/BrandLockup";
+import { PRODUCT_NAME } from "@/lib/brand";
 import { GraphExplorer } from "@/components/graph/GraphExplorer";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Ontology Explorer | Agent Knowledge",
-  description: "Explore the entity types, attributes, and relationships in the Agent Knowledge company brain using an interactive 3D hierarchy.",
+  title: "Ontology Explorer",
+  description: "Explore ALIAS Unified Context Engine entity types, document relationships, and agent context through an interactive ontology.",
 };
 
 export default function OntologyPage() {
@@ -16,7 +18,7 @@ export default function OntologyPage() {
       <a href="#ontology-content" className="sr-only focus:not-sr-only focus:block focus:p-4">Skip to ontology explorer</a>
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3 text-sm font-medium"><Network className="size-5 text-primary" aria-hidden="true" />Agent Knowledge</Link>
+          <Link href="/" aria-label={`${PRODUCT_NAME} home`} className="min-w-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"><BrandLockup compact /></Link>
           <Button asChild variant="ghost"><Link href="/"><ArrowLeft data-icon="inline-start" aria-hidden="true" />Back to Home</Link></Button>
         </div>
       </header>

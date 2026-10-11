@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useMutation, } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { getCurrentOrgId } from "@/lib/org";
 import { canManageKnowledge } from "@/lib/role";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { Id } from "../../../../../convex/_generated/dataModel";
@@ -13,16 +13,20 @@ import { useToast } from "../../components/ToastProvider";
 import { useEffect, useState } from "react";
 
 export default function ApprovalsPage() {
+    const auth = useAuth();
+    const { user } = auth;
+    const { isAuthenticated } = useConvexAuth();
+    const organization = "organizationId" in auth ? auth.organizationId : undefined;
+    const organizationId = getCurrentOrgId(typeof organization === "string" ? organization : undefined);
     const { showToast } = useToast();
     const [rejectingKnowledgeId, setRejectingKnowledgeId] =
         useState<Id<"knowledge"> | null>(null);
     const [rejectionNote, setRejectionNote] = useState("");
     const [rejectionError, setRejectionError] = useState("");
-    const approvalItems = useQuery(api.knowledge.listApprovalQueue, {
-        organizationId: DEFAULT_ORG_ID,
-    });
+    const approvalItems = useQuery(api.knowledge.listApprovalQueue, isAuthenticated ? {
+        organizationId,
+    } : "skip");
     const approveKnowledge = useMutation(api.knowledge.approveKnowledge);
-    const { user } = useAuth();
     const currentRole = useCurrentRole();
     const canManage = canManageKnowledge(currentRole);
     const rejectKnowledge = useMutation(api.knowledge.rejectKnowledge);
@@ -46,7 +50,7 @@ export default function ApprovalsPage() {
             await approveKnowledge({
                 id,
                 actorEmail: user?.email ?? "unknown-user",
-                organizationId: DEFAULT_ORG_ID,
+                organizationId,
                 workosUserId: user?.id ?? "",
             });
 
@@ -86,7 +90,7 @@ export default function ApprovalsPage() {
 
         await rejectKnowledge({
             id: rejectingKnowledgeId,
-            organizationId: DEFAULT_ORG_ID,
+            organizationId,
             workosUserId: user?.id ?? "",
             actorEmail: user?.email ?? "unknown-user",
             reviewNote: rejectionNote,

@@ -133,7 +133,7 @@ export function Particles({
     }
   }, [createCircle, drawCircle, quantity]);
 
-  const animate = useCallback(() => {
+  const animate = useCallback(function animateParticles() {
     const context = contextRef.current;
     const canvas = canvasRef.current;
     if (!context || !canvas) return;
@@ -179,7 +179,7 @@ export function Particles({
       }
     });
 
-    animationFrameRef.current = window.requestAnimationFrame(animate);
+    animationFrameRef.current = window.requestAnimationFrame(animateParticles);
   }, [createCircle, drawCircle, ease, staticity, vx, vy]);
 
   useEffect(() => {

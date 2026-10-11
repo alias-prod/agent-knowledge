@@ -77,9 +77,9 @@ export function GraphExplorer({ snapshot }: { snapshot?: GraphSnapshot }) {
     <div className="graph-explorer font-sans" data-graph-ready="true">
       <header className="graph-page-header">
         <div>
-          <p className="text-sm uppercase tracking-widest text-muted-foreground">Company Brain / Explore</p>
-          <h1 className="mt-3 font-display text-4xl leading-tight tracking-wide text-balance sm:text-5xl">Knowledge, in context.</h1>
-          <p className="mt-3 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">Explore your knowledge, follow agent connections, and see the structure underneath it all.</p>
+          <p className="text-sm uppercase tracking-widest text-muted-foreground">ALIAS / Unified Context Engine</p>
+          <h1 className="mt-3 font-display text-4xl leading-tight tracking-wide text-balance sm:text-5xl">Ontology Explorer</h1>
+          <p className="mt-3 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">Explore connected documents, follow agent context, and inspect the ontology that defines your knowledge.</p>
         </div>
         <div className="graph-source-label"><span className="size-2 rounded-full bg-graph-secondary" aria-hidden="true" />{live ? "Live workspace" : "Application schema"}</div>
       </header>

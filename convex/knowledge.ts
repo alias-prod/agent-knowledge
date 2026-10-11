@@ -1,6 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireAdminForIdentity } from "./permissions";
+import { requireAdminForIdentity, requireMembershipForIdentity } from "./permissions";
+import { replaceDocumentContent } from "./documentModel";
+export { listDocuments, getDocument, createDocument, saveDocumentMetadata, syncDocument, listDocumentVersions, createDocumentCheckpoint, restoreDocumentVersion, findDocumentConnections } from "./documents";
 import { writeAuditLog } from "./audit";
 import { inOrg } from "./tenancy";
 import { rankByRelevance } from "./retrieval";
@@ -98,7 +100,10 @@ export const listKnowledge = query({
     category: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const items = await ctx.db.query("knowledge").order("desc").collect();
+    await requireMembershipForIdentity(ctx, args.organizationId);
+    const items = await ctx.db.query("knowledge")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .order("desc").collect();
 
     const search = args.search?.toLowerCase().trim() ?? "";
     const status = args.status ?? "all";
@@ -120,6 +125,9 @@ export const listKnowledge = query({
       return (
         matchesOrg(item) && matchesSearch && matchesStatus && matchesCategory
       );
+    }).map(({ collaborationState, ...record }) => {
+      void collaborationState;
+      return record;
     });
   },
 });
@@ -181,10 +189,18 @@ export const updateKnowledge = mutation({
     const category = requireText(args.category, "Category", LIMITS.category);
     const sourceUrl = normalizeSourceUrl(args.sourceUrl);
     const now = Date.now();
+    const item = await ctx.db.get(args.id);
+    if (!item || item.organizationId !== args.organizationId) throw new Error("Knowledge item not found");
+    for (const agentId of args.allowedAgentIds ?? []) {
+      const agent = await ctx.db.get(agentId);
+      if (!agent || agent.organizationId !== args.organizationId) throw new Error("Agent does not belong to this organization");
+    }
 
     await ctx.db.patch(args.id, {
       title,
       content,
+      collaborationState: replaceDocumentContent(item, content),
+      metadataRevision: (item.metadataRevision ?? 0) + 1,
       category,
       status: args.status,
       canUseToAnswer: args.canUseToAnswer,
@@ -225,7 +241,12 @@ export const getKnowledge = query({
     id: v.id("knowledge"),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const item = await ctx.db.get(args.id);
+    if (!item?.organizationId) return null;
+    await requireMembershipForIdentity(ctx, item.organizationId);
+    const { collaborationState, ...record } = item;
+    void collaborationState;
+    return record;
   },
 });
 
@@ -235,8 +256,9 @@ export const listAuditLogsForKnowledge = query({
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireMembershipForIdentity(ctx, args.organizationId);
     const logs = await ctx.db.query("auditLogs").order("desc").collect();
-    const matchesOrg = inOrg(args.organizationId);
+    const matchesOrg = (log: { organizationId?: string }) => log.organizationId === args.organizationId;
 
     return logs
       .filter((log) => log.knowledgeId === args.knowledgeId && matchesOrg(log))
@@ -250,12 +272,18 @@ export const listKnowledgeForAgent = query({
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
-    const items = await ctx.db.query("knowledge").order("desc").collect();
+    await requireMembershipForIdentity(ctx, args.organizationId);
+    const items = await ctx.db.query("knowledge")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .order("desc").collect();
     const matchesOrg = inOrg(args.organizationId);
 
     return items.filter(
       (item) => item.allowedAgentIds?.includes(args.agentId) && matchesOrg(item)
-    );
+    ).map(({ collaborationState, ...record }) => {
+      void collaborationState;
+      return record;
+    });
   },
 });
 
@@ -264,12 +292,18 @@ export const listApprovalQueue = query({
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
-    const items = await ctx.db.query("knowledge").order("desc").collect();
+    await requireMembershipForIdentity(ctx, args.organizationId);
+    const items = await ctx.db.query("knowledge")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId))
+      .order("desc").collect();
     const matchesOrg = inOrg(args.organizationId);
 
     return items.filter(
       (item) => item.requiresApproval === true && matchesOrg(item)
-    );
+    ).map(({ collaborationState, ...record }) => {
+      void collaborationState;
+      return record;
+    });
   },
 });
 
@@ -331,7 +365,8 @@ export const approveKnowledge = mutation({
   handler: async (ctx, args) => {
     await requireAdminForIdentity(ctx, args.organizationId);
     const item = await ctx.db.get(args.id);
-    const now = Date.now();
+    if (!item || item.organizationId !== args.organizationId) throw new Error("Knowledge item not found");
+    const now = Math.max(Date.now(), item.updatedAt + 1);
 
     await ctx.db.patch(args.id, {
       requiresApproval: false,
@@ -357,13 +392,17 @@ export const searchKnowledgeForAgent = query({
     question: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireMembershipForIdentity(ctx, args.organizationId);
+    const agent = await ctx.db.get(args.agentId);
+    if (!agent || agent.organizationId !== args.organizationId || agent.status !== "active") throw new Error("Agent is not available in this workspace");
     const question = optionalText(args.question, "Question", LIMITS.question);
 
     if (!question) {
       return [];
     }
 
-    const knowledgeItems = await ctx.db.query("knowledge").collect();
+    const knowledgeItems = await ctx.db.query("knowledge")
+      .withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId)).collect();
     const matchesOrg = inOrg(args.organizationId);
 
     const allowedItems = knowledgeItems.filter(
@@ -371,12 +410,16 @@ export const searchKnowledgeForAgent = query({
         matchesOrg(item) &&
         item.status === "verified" &&
         item.canUseToAnswer === true &&
+        item.requiresApproval !== true &&
         (item.allowedAgentIds ?? []).some(
           (agentId) => agentId.toString() === args.agentId.toString()
         )
     );
 
-    return rankByRelevance(allowedItems, question);
+    return rankByRelevance(allowedItems.map(({ collaborationState, ...record }) => {
+      void collaborationState;
+      return record;
+    }), question);
   },
 });
 
@@ -431,12 +474,16 @@ export const listVersionsForKnowledge = query({
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireMembershipForIdentity(ctx, args.organizationId);
+    const item = await ctx.db.get(args.knowledgeId);
+    if (!item || item.organizationId !== args.organizationId) return [];
     const versions = await ctx.db
       .query("knowledgeVersions")
+      .withIndex("by_knowledge", (q) => q.eq("knowledgeId", args.knowledgeId))
       .order("desc")
-      .collect();
+      .take(20);
 
-    const matchesOrg = inOrg(args.organizationId);
+    const matchesOrg = (version: { organizationId?: string }) => version.organizationId === args.organizationId;
 
     return versions
       .filter(
@@ -467,7 +514,7 @@ export const restoreKnowledgeVersion = mutation({
 
     const knowledge = await ctx.db.get(version.knowledgeId);
 
-    if (!knowledge) {
+    if (!knowledge || knowledge.organizationId !== args.organizationId || version.organizationId !== args.organizationId) {
       throw new Error("Knowledge item not found");
     }
 
@@ -477,7 +524,10 @@ export const restoreKnowledgeVersion = mutation({
       title: version.title,
       content: version.content,
       category: version.category,
-      status: version.status,
+      status: "draft",
+      requiresApproval: true,
+      collaborationState: replaceDocumentContent(knowledge, version.content),
+      metadataRevision: (knowledge.metadataRevision ?? 0) + 1,
       updatedAt: now,
     });
 

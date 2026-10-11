@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import Link from "next/link";
+import { documentHref, documentGraphHref } from "@agent-knowledge/shared";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { getCurrentOrgId } from "@/lib/org";
 import { canManageKnowledge } from "@/lib/role";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { useToast } from "../../components/ToastProvider";
@@ -14,6 +15,11 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { SkeletonLine, SkeletonList } from "../../components/Skeleton";
 
 export default function KnowledgePage() {
+  const auth = useAuth();
+  const { user } = auth;
+  const { isAuthenticated } = useConvexAuth();
+  const organization = "organizationId" in auth ? auth.organizationId : undefined;
+  const organizationId = getCurrentOrgId(typeof organization === "string" ? organization : undefined);
   const { showToast } = useToast();
 
   const [search, setSearch] = useState("");
@@ -22,20 +28,20 @@ export default function KnowledgePage() {
   );
   const [categoryFilter, setCategoryFilter] = useState("all");
 
-  const knowledgeItems = useQuery(api.knowledge.listKnowledge, {
-    organizationId: DEFAULT_ORG_ID,
+  const knowledgeItems = useQuery(api.knowledge.listKnowledge, isAuthenticated ? {
+    organizationId,
     search,
     status: statusFilter,
     category: categoryFilter,
-  });
+  } : "skip");
   const agents = useQuery(api.agents.listAgents, {
-    organizationId: DEFAULT_ORG_ID,
+    organizationId,
   });
 
   const organizationSettings = useQuery(
     api.organizations.getOrganizationSettings,
     {
-      organizationId: DEFAULT_ORG_ID,
+      organizationId,
     }
   );
 
@@ -50,8 +56,6 @@ export default function KnowledgePage() {
 
   const defaultCanUseToAct =
     organizationSettings?.defaultCanUseToAct ?? false;
-
-  const { user } = useAuth();
 
   const createKnowledge = useMutation(api.knowledge.createKnowledge);
 
@@ -135,7 +139,7 @@ export default function KnowledgePage() {
       .join("\n\n---\n\n");
 
     downloadTextFile(
-      "agent-knowledge-export.md",
+      "alias-context-engine-export.md",
       content,
       "text/markdown;charset=utf-8"
     );
@@ -178,7 +182,7 @@ export default function KnowledgePage() {
       .join("\n");
 
     downloadTextFile(
-      "agent-knowledge-export.csv",
+      "alias-context-engine-export.csv",
       content,
       "text/csv;charset=utf-8"
     );
@@ -210,7 +214,7 @@ export default function KnowledgePage() {
       allowedAgentIds,
       actorEmail: user?.email ?? "unknown-user",
       ownerEmail: user?.email ?? "unknown-user",
-      organizationId: DEFAULT_ORG_ID,
+      organizationId,
       workosUserId: user?.id ?? "",
     };
 
@@ -229,7 +233,7 @@ export default function KnowledgePage() {
           sourceUrl: sourceUrl || undefined,
           lastReviewedAt: undefined,
           allowedAgentIds,
-          organizationId: DEFAULT_ORG_ID,
+          organizationId,
           workosUserId: user?.id ?? "",
           actorEmail: user?.email ?? "unknown-user",
         });
@@ -381,7 +385,7 @@ export default function KnowledgePage() {
           sourceUrl: "",
           lastReviewedAt: undefined,
           allowedAgentIds: importAllowedAgentIds,
-          organizationId: DEFAULT_ORG_ID,
+          organizationId,
           workosUserId: user?.id ?? "",
           actorEmail: user?.email ?? "unknown-user",
         });
@@ -408,7 +412,7 @@ export default function KnowledgePage() {
       await deleteKnowledge({
         id,
         actorEmail: user?.email ?? "unknown-user",
-        organizationId: DEFAULT_ORG_ID,
+        organizationId,
         workosUserId: user?.id ?? "",
       });
 
@@ -444,6 +448,7 @@ export default function KnowledgePage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <Link href="/documents" prefetch={false} className="ak-button-secondary">Document Workspace</Link>
           <button
             type="button"
             onClick={exportKnowledgeMarkdown}
@@ -936,8 +941,10 @@ export default function KnowledgePage() {
                       href={`/knowledge/${item._id}`}
                       className="ak-button-primary col-span-2 px-3.5 py-2 sm:col-span-1"
                     >
-                      Open
+                      Governance
                     </Link>
+                    <Link href={documentHref(item._id)} prefetch={false} className="ak-button-secondary px-3.5 py-2">Document</Link>
+                    <Link href={documentGraphHref(item._id)} prefetch={false} className="ak-button-secondary px-3.5 py-2">Graph</Link>
 
                     {canManage && (
                       <button

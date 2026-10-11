@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { getCurrentOrgId } from "@/lib/org";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
 
 
@@ -14,14 +15,18 @@ export default function AgentDetailPage() {
   const id = params.id as Id<"agents">;
 
   const agent = useQuery(api.agents.getAgent, { id });
-  const knowledgeItems = useQuery(api.knowledge.listKnowledgeForAgent, {
+  const auth = useAuth();
+  const { isAuthenticated } = useConvexAuth();
+  const organization = "organizationId" in auth ? auth.organizationId : undefined;
+  const organizationId = getCurrentOrgId(typeof organization === "string" ? organization : undefined);
+  const knowledgeItems = useQuery(api.knowledge.listKnowledgeForAgent, isAuthenticated ? {
     agentId: id,
-    organizationId: DEFAULT_ORG_ID,
-  });;
+    organizationId,
+  } : "skip");
 
   const auditLogs = useQuery(api.agents.listAuditLogsForAgent, {
     agentId: id,
-    organizationId: DEFAULT_ORG_ID,
+    organizationId,
   });
 
   return (

@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { getCurrentOrgId } from "@/lib/org";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { useToast } from "../../components/ToastProvider";
 import { SkeletonList } from "../../components/Skeleton";
@@ -14,6 +14,11 @@ import { SkeletonList } from "../../components/Skeleton";
 
 
 export default function AskPage() {
+    const auth = useAuth();
+    const { user } = auth;
+    const { isAuthenticated } = useConvexAuth();
+    const organization = "organizationId" in auth ? auth.organizationId : undefined;
+    const organizationId = getCurrentOrgId(typeof organization === "string" ? organization : undefined);
     const { showToast } = useToast();
     const [selectedAgentId, setSelectedAgentId] = useState<Id<"agents"> | "">("");
     const [question, setQuestion] = useState("");
@@ -24,22 +29,20 @@ export default function AskPage() {
 
 
     const agents = useQuery(api.agents.listAgents, {
-        organizationId: DEFAULT_ORG_ID,
+        organizationId,
         search: "",
         status: "all",
         role: "all",
     });
 
-    const { user } = useAuth();
-
     const selectedAgent = agents?.find((agent) => agent._id === selectedAgentId);
 
     const results = useQuery(
         api.knowledge.searchKnowledgeForAgent,
-        selectedAgentId && question.trim()
+        isAuthenticated && selectedAgentId && selectedAgent?.status === "active" && question.trim()
             ? {
                 agentId: selectedAgentId,
-                organizationId: DEFAULT_ORG_ID,
+                organizationId,
                 question,
             }
             : "skip"
@@ -52,7 +55,7 @@ export default function AskPage() {
 
         const timeout = window.setTimeout(() => {
             logRetrievalSearch({
-                organizationId: DEFAULT_ORG_ID,
+                organizationId,
                 agentId: selectedAgentId,
                 agentName: selectedAgent?.name,
                 question,
@@ -72,6 +75,7 @@ export default function AskPage() {
         question,
         results,
         user?.email,
+        organizationId,
         logRetrievalSearch,
     ]);
 
@@ -190,7 +194,7 @@ export default function AskPage() {
                 <p className="ak-header-eyebrow">
                     Agent Retrieval
                 </p>
-                <h1 className="ak-header-title">Ask Agent Knowledge</h1>
+                <h1 className="ak-header-title">Ask the Context Engine</h1>
                 <p className="ak-header-description">
                     Select an agent and search only the knowledge that agent is allowed
                     to use.

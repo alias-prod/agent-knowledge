@@ -11,6 +11,9 @@ export type { OrganizationId } from "./tenancy";
 export { buildActorArgs } from "./actor";
 export type { ActorArgs, ActorSource } from "./actor";
 
+export { DOCUMENT_LIMITS, KNOWLEDGE_TYPES, RELATIONSHIP_KINDS, documentHref, documentGraphHref } from "./documents";
+export type { KnowledgeType, RelationshipKind } from "./documents";
+
 export { GRAPH_LIMITS } from "./graph";
 export type {
   GraphAgent,

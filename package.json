@@ -24,7 +24,8 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
+    "@agent-knowledge/shared": "workspace:*",
     "convex": "^1.39.1",
-    "@agent-knowledge/shared": "workspace:*"
+    "yjs": "^13.6.33"
   }
 }
