@@ -94,7 +94,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user_org", ["userId", "organizationId"])
-    .index("by_organization", ["organizationId"]),
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_role", ["organizationId", "role"]),
 
   organizationSettings: defineTable({
     organizationId: v.string(),
