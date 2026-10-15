@@ -29,6 +29,7 @@
     "better-auth": "1.6.15",
     "convex": "^1.39.1",
     "convex-helpers": "0.1.120",
+    "resend": "6.33.0",
     "yjs": "^13.6.33"
   }
 }

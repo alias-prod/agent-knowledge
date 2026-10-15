@@ -4,18 +4,20 @@ import { organization } from "better-auth/plugins";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { getAuthConfigProvider } from "@convex-dev/better-auth/auth-config";
 import { getAuthEnvironment } from "./authEnvironment";
+import { sendAuthMail } from "./authMail";
 
 export type AuthMail = {
   kind: "verification" | "reset" | "invitation";
   email: string;
   url: string;
+  deliveryId?: string;
 };
 
 export type SendAuthMail = (message: AuthMail) => Promise<void>;
 
 export function createAuthOptions(
   database: BetterAuthOptions["database"],
-  sendMail: SendAuthMail,
+  sendMail: SendAuthMail = sendAuthMail,
 ) {
   const configuration = getAuthEnvironment(process.env);
   return {
@@ -48,7 +50,9 @@ export function createAuthOptions(
           if (!configuration.baseURL) throw new APIError("SERVICE_UNAVAILABLE");
           const url = new URL("/accept-invitation", configuration.baseURL);
           url.searchParams.set("id", id);
-          await sendMail({ kind: "invitation", email, url: url.toString() });
+          // A deliberate resend may reuse the same invitation URL. Retries of
+          // this delivery retain its ID; a new plugin callback gets a new one.
+          await sendMail({ kind: "invitation", email, url: url.toString(), deliveryId: crypto.randomUUID() });
         },
       }),
       convex({ authConfig: { providers: [getAuthConfigProvider()] } }),
