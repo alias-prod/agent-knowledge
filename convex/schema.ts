@@ -32,7 +32,8 @@ export default defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_organization_parent", ["organizationId", "parentId"])
-    .searchIndex("search_content", { searchField: "content", filterFields: ["organizationId"] }),
+    .searchIndex("search_content", { searchField: "content", filterFields: ["organizationId"] })
+    .searchIndex("assistant_title", { searchField: "title", filterFields: ["organizationId"] }),
 
   rateLimits: defineTable({
     key: v.string(),
@@ -177,7 +178,8 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("disabled")),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_organization", ["organizationId"]),
+  }).index("by_organization", ["organizationId"])
+    .searchIndex("assistant_name", { searchField: "name", filterFields: ["organizationId", "status"] }),
 
   knowledgeVersions: defineTable({
     knowledgeId: v.id("knowledge"),

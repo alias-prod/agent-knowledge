@@ -9,6 +9,7 @@
  */
 
 import type * as agents from "../agents.js";
+import type * as assistant from "../assistant.js";
 import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
 import type * as authEnvironment from "../authEnvironment.js";
@@ -40,6 +41,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agents: typeof agents;
+  assistant: typeof assistant;
   audit: typeof audit;
   auth: typeof auth;
   authEnvironment: typeof authEnvironment;
