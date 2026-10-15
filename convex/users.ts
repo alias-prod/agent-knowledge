@@ -1,7 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { canManageKnowledge } from "@agent-knowledge/shared";
-import { requireAdminForIdentity } from "./permissions";
+import { requireAdminForIdentity, requireMembershipForIdentity } from "./permissions";
 import { writeAuditLog } from "./audit";
 import { LIMITS, normalizeEmail, optionalText } from "./validation";
 
@@ -14,56 +14,24 @@ export const upsertCurrentUser = mutation({
         actorEmail: v.optional(v.string()),
     },
     handler: async (ctx, args) => {
-        const now = Date.now();
-
-        const existingUser = await ctx.db
-            .query("users")
-            .withIndex("by_workosUserId", (q) =>
-                q.eq("workosUserId", args.workosUserId)
-            )
-            .first();
-
-        let userId;
-
-        if (existingUser) {
-            userId = existingUser._id;
-
-            await ctx.db.patch(existingUser._id, {
-                email: args.email,
-                name: args.name,
-                updatedAt: now,
-            });
-        } else {
-            userId = await ctx.db.insert("users", {
-                workosUserId: args.workosUserId,
-                email: args.email,
-                name: args.name,
-                createdAt: now,
-                updatedAt: now,
-            });
-        }
-        const existingMembership = await ctx.db
-            .query("memberships")
-            .withIndex("by_user_org", (q) =>
-                q.eq("userId", userId).eq("organizationId", args.organizationId)
-            )
-            .first();
-
-        if (existingMembership) {
-            await ctx.db.patch(existingMembership._id, {
-                updatedAt: now,
-            });
-        } else {
-            await ctx.db.insert("memberships", {
-                userId,
-                organizationId: args.organizationId,
-                role: "admin",
-                createdAt: now,
-                updatedAt: now,
-            });
+        const { identity, membership } = await requireMembershipForIdentity(
+            ctx,
+            args.organizationId
+        );
+        if (identity.subject !== args.workosUserId) {
+            throw new Error("Unauthorized");
         }
 
-        return userId;
+        // Membership provisioning belongs to the identity migration/invitation
+        // flow, never to a browser-triggered profile refresh.
+        await ctx.db.patch(membership.userId, {
+            ...(identity.email ? { email: normalizeEmail(identity.email) } : {}),
+            ...(identity.name
+                ? { name: optionalText(identity.name, "Name", LIMITS.name) }
+                : {}),
+            updatedAt: Date.now(),
+        });
+        return membership.userId;
     },
 });
 
@@ -73,6 +41,10 @@ export const getMembershipByWorkosUser = query({
         organizationId: v.string(),
     },
     handler: async (ctx, args) => {
+        const { identity } = await requireMembershipForIdentity(ctx, args.organizationId);
+        if (identity.subject !== args.workosUserId) {
+            throw new Error("Unauthorized");
+        }
         const user = await ctx.db
             .query("users")
             .withIndex("by_workosUserId", (q) =>
@@ -103,6 +75,7 @@ export const listMembers = query({
         organizationId: v.string(),
     },
     handler: async (ctx, args) => {
+        await requireMembershipForIdentity(ctx, args.organizationId);
         const memberships = await ctx.db
             .query("memberships")
             .withIndex("by_organization", (q) =>

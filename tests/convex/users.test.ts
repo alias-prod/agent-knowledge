@@ -54,6 +54,84 @@ async function seedTargetMember(
   });
 }
 
+describe("profile provisioning and membership reads", () => {
+  const profile = {
+    workosUserId: "workos_admin",
+    email: "forged@example.com",
+    name: "Forged name",
+    organizationId: "org_test",
+  };
+
+  test("rejects anonymous profile provisioning without writing users or memberships", async () => {
+    const t = convexTest(schema, modules);
+    await expect(t.mutation(api.users.upsertCurrentUser, profile)).rejects.toThrow("Unauthorized");
+    await t.run(async (ctx) => {
+      expect(await ctx.db.query("users").collect()).toEqual([]);
+      expect(await ctx.db.query("memberships").collect()).toEqual([]);
+    });
+  });
+
+  test("does not bootstrap an authenticated stranger into an admin", async () => {
+    const t = convexTest(schema, modules);
+    const stranger = t.withIdentity({ subject: profile.workosUserId });
+    await expect(stranger.mutation(api.users.upsertCurrentUser, profile)).rejects.toThrow("Unauthorized");
+    await t.run(async (ctx) => {
+      expect(await ctx.db.query("memberships").collect()).toEqual([]);
+    });
+  });
+
+  test("cannot refresh another user's profile using a forged identity argument", async () => {
+    const t = convexTest(schema, modules);
+    await seedAdmin(t, "workos_admin", "org_test");
+    await seedAdmin(t, "workos_other", "org_test");
+    const other = t.withIdentity({ subject: "workos_other" });
+    await expect(other.mutation(api.users.upsertCurrentUser, profile)).rejects.toThrow("Unauthorized");
+  });
+
+  test("refreshes only verified profile claims without changing membership roles", async () => {
+    const t = convexTest(schema, modules);
+    await seedAdmin(t, "workos_admin", "org_test");
+    const actor = t.withIdentity({
+      subject: "workos_admin",
+      email: "verified@example.com",
+      name: "Verified name",
+    });
+    const userId = await actor.mutation(api.users.upsertCurrentUser, profile);
+    await t.run(async (ctx) => {
+      expect(await ctx.db.get(userId)).toMatchObject({ email: "verified@example.com", name: "Verified name" });
+      const memberships = await ctx.db.query("memberships").collect();
+      expect(memberships).toHaveLength(1);
+      expect(memberships[0].role).toBe("admin");
+    });
+    await expect(actor.mutation(api.users.upsertCurrentUser, { ...profile, organizationId: "other_org" })).rejects.toThrow("Unauthorized");
+  });
+
+  test("restricts membership lookup to the verified actor in an authorized organization", async () => {
+    const t = convexTest(schema, modules);
+    await seedAdmin(t, "workos_admin", "org_test");
+    const args = { workosUserId: "workos_admin", organizationId: "org_test" };
+    await expect(t.query(api.users.getMembershipByWorkosUser, args)).rejects.toThrow("Unauthorized");
+    const actor = t.withIdentity({ subject: "workos_admin" });
+    await expect(actor.query(api.users.getMembershipByWorkosUser, args)).resolves.toMatchObject({ membership: { role: "admin" } });
+    await expect(actor.query(api.users.getMembershipByWorkosUser, { ...args, workosUserId: "someone_else" })).rejects.toThrow("Unauthorized");
+    await expect(actor.query(api.users.getMembershipByWorkosUser, { ...args, organizationId: "other_org" })).rejects.toThrow("Unauthorized");
+  });
+
+  test("restricts the member directory to live workspace members", async () => {
+    const t = convexTest(schema, modules);
+    await seedAdmin(t, "workos_admin", "org_test");
+    await expect(t.query(api.users.listMembers, { organizationId: "org_test" })).rejects.toThrow("Unauthorized");
+    const actor = t.withIdentity({ subject: "workos_admin" });
+    await expect(actor.query(api.users.listMembers, { organizationId: "org_test" })).resolves.toHaveLength(1);
+    await expect(actor.query(api.users.listMembers, { organizationId: "other_org" })).rejects.toThrow("Unauthorized");
+    await t.run(async (ctx) => {
+      const membership = await ctx.db.query("memberships").first();
+      await ctx.db.delete(membership!._id);
+    });
+    await expect(actor.query(api.users.listMembers, { organizationId: "org_test" })).rejects.toThrow("Unauthorized");
+  });
+});
+
 describe("users.ts mutation authorization", () => {
   describe("updateMemberRole", () => {
     test("authorizes using ctx.auth's verified identity, ignoring an unprivileged caller-supplied workosUserId", async () => {
