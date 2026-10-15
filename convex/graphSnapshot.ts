@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { DOCUMENT_LIMITS, GRAPH_LIMITS, type GraphSnapshot } from "@agent-knowledge/shared";
 import { documentTypeValidator } from "./documentModel";
 import type { QueryCtx } from "./_generated/server";
-import { getMembershipForWorkosUser } from "./permissions";
+import { getMembershipForAuthUser } from "./permissions";
 
 export const graphSnapshotArgs = { organizationId: v.string() };
 
@@ -50,7 +50,7 @@ export async function readGraphSnapshot(ctx: QueryCtx, args: { organizationId: s
   const identity = await ctx.auth.getUserIdentity();
   if (!identity || !args.organizationId || args.organizationId.length > 256) throw new Error("Unauthorized");
 
-  const membership = await getMembershipForWorkosUser(ctx, identity.subject, args.organizationId);
+  const membership = await getMembershipForAuthUser(ctx, identity.subject, args.organizationId);
   if (!membership) throw new Error("Unauthorized");
 
   const [knowledgeRows, agentRows, retrievalRows, settings] = await Promise.all([

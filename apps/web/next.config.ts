@@ -1,5 +1,7 @@
 import { existsSync } from "node:fs";
 import { loadEnvFile } from "node:process";
+import { createRequire } from "node:module";
+import { dirname } from "node:path";
 import type { NextConfig } from "next";
 
 const environment = process.env.NODE_ENV || "development";
@@ -17,8 +19,22 @@ for (const filename of workspaceEnvFiles) {
   if (existsSync(path)) loadEnvFile(path);
 }
 
+const workspaceRequire = createRequire(new URL("../../package.json", import.meta.url));
+const convexPackage = dirname(workspaceRequire.resolve("convex/package.json"));
+
 const nextConfig: NextConfig = {
-  transpilePackages: ["@agent-knowledge/shared"],
+  // Bun can resolve separate physical copies for the app and the auth adapter;
+  // both must share one React auth context, in development and production.
+  turbopack: { resolveAlias: { "convex/react": "../../node_modules/convex/dist/esm/react/index.js", convex: "../../node_modules/convex" } },
+  webpack(config) {
+    config.resolve.alias.convex = convexPackage;
+    return config;
+  },
+  env: {
+    NEXT_PUBLIC_CONVEX_URL: process.env.NEXT_PUBLIC_CONVEX_URL ?? process.env.CONVEX_URL,
+    NEXT_PUBLIC_CONVEX_SITE_URL: process.env.NEXT_PUBLIC_CONVEX_SITE_URL ?? process.env.CONVEX_SITE_URL,
+  },
+  transpilePackages: ["@agent-knowledge/shared", "@convex-dev/better-auth", "convex"],
   async headers() {
     return [{
       source: "/:path*",

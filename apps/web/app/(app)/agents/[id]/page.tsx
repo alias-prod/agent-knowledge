@@ -6,7 +6,7 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { getCurrentOrgId } from "@/lib/org";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth } from "@/lib/auth-context";
 import { Breadcrumbs } from "../../../components/Breadcrumbs";
 
 

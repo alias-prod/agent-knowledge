@@ -16,7 +16,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("convex/react", () => ({
   ConvexReactClient: mocks.client,
-  ConvexProviderWithAuth: (props: {
+}));
+
+vi.mock("@convex-dev/better-auth/react", () => ({
+  ConvexBetterAuthProvider: (props: {
     children: ReactNode;
     client: unknown;
     useAuth: unknown;
@@ -26,13 +29,7 @@ vi.mock("convex/react", () => ({
   },
 }));
 
-vi.mock("@workos-inc/authkit-nextjs/components", () => ({
-  useAuth: () => ({ user: null, loading: false }),
-  useAccessToken: () => ({
-    getAccessToken: vi.fn(),
-    refresh: vi.fn(),
-  }),
-}));
+vi.mock("@/lib/auth-client", () => ({ authClient: {} }));
 
 beforeEach(() => {
   vi.resetModules();
@@ -90,7 +87,7 @@ describe("ConvexClientProvider", () => {
     );
     expect(screen.getByText("Workspace data")).toBeInTheDocument();
     const firstProps = mocks.provider.mock.calls[0][0];
-    expect(firstProps.useAuth).toBeTypeOf("function");
+    expect(firstProps.authClient).toBeDefined();
 
     rerender(<ConvexClientProvider>Updated data</ConvexClientProvider>);
 

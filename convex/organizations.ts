@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireAdminForIdentity } from "./permissions";
+import { requireAdminForIdentity, requireMembershipForIdentity } from "./permissions";
 import { writeAuditLog } from "./audit";
 import { LIMITS, optionalText } from "./validation";
 
@@ -9,6 +9,7 @@ export const getOrganizationSettings = query({
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireMembershipForIdentity(ctx, args.organizationId);
     const settings = await ctx.db
       .query("organizationSettings")
       .withIndex("by_organizationId", (q) =>

@@ -1,67 +1,38 @@
 import type { QueryCtx, MutationCtx } from "./_generated/server";
+import { components } from "./_generated/api";
+import { getSession } from "./auth";
 
 type Ctx = QueryCtx | MutationCtx;
 
-export async function getMembershipForWorkosUser(
-  ctx: Ctx,
-  workosUserId: string,
-  organizationId: string
-) {
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_workosUserId", (q) => q.eq("workosUserId", workosUserId))
-    .first();
-
-  if (!user) return null;
-
-  const membership = await ctx.db
-    .query("memberships")
-    .withIndex("by_user_org", (q) =>
-      q.eq("userId", user._id).eq("organizationId", organizationId)
-    )
-    .first();
-
-  return membership;
-}
-
 export async function requireMembershipForIdentity(ctx: Ctx, organizationId: string) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity || !organizationId || organizationId.length > 256) throw new Error("Unauthorized");
-  const membership = await getMembershipForWorkosUser(ctx, identity.subject, organizationId);
-  if (!membership) throw new Error("Unauthorized");
-  return { identity, membership };
+  if (!organizationId || organizationId.length > 256) throw new Error("Unauthorized");
+  const session = await getSession(ctx);
+  if (!session?.user.emailVerified) throw new Error("Unauthorized");
+  const mapping = await ctx.db.query("authOrganizationMappings").withIndex("by_organization", (q) =>
+    q.eq("organizationId", organizationId)).unique();
+  if (!mapping || session.session.activeOrganizationId !== mapping.betterAuthOrganizationId) throw new Error("Unauthorized");
+  const member = await ctx.runQuery(components.betterAuth.access.getSessionMembership, {
+    sessionId: session.session.id, userId: session.user.id, organizationId: mapping.betterAuthOrganizationId,
+  });
+  if (!member) throw new Error("Unauthorized");
+  const profile = await ctx.db.query("users").withIndex("by_betterAuthUserId", (q) =>
+    q.eq("betterAuthUserId", session.user.id)).unique();
+  if (!profile) throw new Error("Finish account setup before opening this workspace");
+  return {
+    identity: { subject: session.user.id, email: member.email, name: member.name },
+    membership: { userId: profile._id, organizationId, role: member.role },
+    authOrganizationId: mapping.betterAuthOrganizationId,
+  };
 }
 
-export async function requireAdminForWorkosUser(
-  ctx: Ctx,
-  workosUserId: string,
-  organizationId: string
-) {
-  const membership = await getMembershipForWorkosUser(
-    ctx,
-    workosUserId,
-    organizationId
-  );
-
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
-    throw new Error("Unauthorized");
-  }
-
-  return membership;
+export async function getMembershipForAuthUser(ctx: Ctx, userId: string, organizationId: string) {
+  const result = await requireMembershipForIdentity(ctx, organizationId);
+  if (result.identity.subject !== userId) throw new Error("Unauthorized");
+  return result.membership;
 }
 
-// Authorization now requires a server-verified ctx.auth identity — no more
-// falling back to a client-supplied workosUserId. writeAuditLog keeps its own
-// separate fallback for actorId; that's unrelated to this authorization check.
-export async function requireAdminForIdentity(
-  ctx: Ctx,
-  organizationId: string
-) {
-  const identity = await ctx.auth.getUserIdentity();
-
-  if (!identity) {
-    throw new Error("Unauthorized");
-  }
-
-  return await requireAdminForWorkosUser(ctx, identity.subject, organizationId);
+export async function requireAdminForIdentity(ctx: Ctx, organizationId: string) {
+  const result = await requireMembershipForIdentity(ctx, organizationId);
+  if (!["owner", "admin"].includes(result.membership.role)) throw new Error("Unauthorized");
+  return result.membership;
 }

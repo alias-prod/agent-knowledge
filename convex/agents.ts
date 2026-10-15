@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireAdminForIdentity } from "./permissions";
+import { requireAdminForIdentity, requireMembershipForIdentity } from "./permissions";
 import { writeAuditLog } from "./audit";
 import { inOrg } from "./tenancy";
 import { LIMITS, requireText } from "./validation";
@@ -62,7 +62,8 @@ export const listAgents = query({
     role: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const agents = await ctx.db.query("agents").order("desc").collect();
+    await requireMembershipForIdentity(ctx, args.organizationId);
+    const agents = await ctx.db.query("agents").withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId)).order("desc").collect();
 
     const search = args.search?.toLowerCase().trim() ?? "";
     const status = args.status ?? "all";
@@ -166,7 +167,10 @@ export const getAgent = query({
     id: v.id("agents"),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const agent = await ctx.db.get(args.id);
+    if (!agent?.organizationId) return null;
+    await requireMembershipForIdentity(ctx, agent.organizationId);
+    return agent;
   },
 });
 
@@ -176,6 +180,7 @@ export const listAuditLogsForAgent = query({
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireMembershipForIdentity(ctx, args.organizationId);
     const logs = await ctx.db.query("auditLogs").order("desc").collect();
     const matchesOrg = inOrg(args.organizationId);
 
@@ -190,6 +195,7 @@ export const listAuditLogs = query({
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireMembershipForIdentity(ctx, args.organizationId);
     const logs = await ctx.db.query("auditLogs").order("desc").collect();
 
     return logs.filter(inOrg(args.organizationId)).slice(0, 50);

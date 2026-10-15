@@ -70,6 +70,17 @@ export default defineSchema({
     .index("by_auth_organization", ["betterAuthOrganizationId"])
     .index("by_organization", ["organizationId"]),
 
+  authMigrationRuns: defineTable({
+    runId: v.string(), organizationId: v.string(), betterAuthOrganizationId: v.string(),
+    reviewedBy: v.string(), backupReference: v.string(), providerEvidenceDigest: v.string(),
+    cursor: v.union(v.string(), v.null()), status: v.union(v.literal("importing"), v.literal("complete")),
+    createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_run", ["runId"]).index("by_organization", ["organizationId"]),
+  authMigrationPages: defineTable({
+    runId: v.string(), cursor: v.union(v.string(), v.null()),
+    nextCursor: v.string(), isDone: v.boolean(), scanned: v.number(), fingerprint: v.string(),
+  }).index("by_run_cursor", ["runId", "cursor"]),
+
   authMigrationLinks: defineTable({
     runId: v.string(),
     userId: v.id("users"),

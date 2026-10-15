@@ -1,23 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth } from "@/lib/auth-context";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { useCurrentOrganization } from "@/lib/auth-context";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { canManageKnowledge } from "@/lib/role";
 import { useToast } from "../../components/ToastProvider";
 import { SkeletonCard, SkeletonLine } from "../../components/Skeleton";
 
 export default function SettingsPage() {
+  const organizationId = useCurrentOrganization();
   const { showToast } = useToast();
   const { user } = useAuth({ ensureSignedIn: true });
   const currentRole = useCurrentRole();
   const canManage = currentRole !== "loading" && canManageKnowledge(currentRole);
 
   const settings = useQuery(api.organizations.getOrganizationSettings, {
-    organizationId: DEFAULT_ORG_ID,
+    organizationId: organizationId,
   });
 
   const updateSettings = useMutation(
@@ -66,7 +67,7 @@ export default function SettingsPage() {
 
     try {
       await updateSettings({
-        organizationId: DEFAULT_ORG_ID,
+        organizationId: organizationId,
         workosUserId: user?.id ?? "",
         actorEmail: user?.email ?? "unknown-user",
         displayName,
@@ -268,7 +269,7 @@ export default function SettingsPage() {
               Organization ID
             </p>
             <p className="mt-2 break-all font-mono text-xs text-neutral-300">
-              {DEFAULT_ORG_ID}
+              {organizationId}
             </p>
           </section>
         </aside>

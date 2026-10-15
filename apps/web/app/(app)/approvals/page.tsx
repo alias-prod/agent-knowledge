@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useMutation, } from "convex/react";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth } from "@/lib/auth-context";
 import { getCurrentOrgId } from "@/lib/org";
 import { canManageKnowledge } from "@/lib/role";
 import { useCurrentRole } from "@/lib/useCurrentRole";

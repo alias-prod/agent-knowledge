@@ -35,12 +35,6 @@ export default defineConfig({
             { find: "lucide-react", replacement: webPackage("lucide-react") },
             { find: "@radix-ui/react-slot", replacement: webPackage("@radix-ui/react-slot") },
             {
-              find: "@workos-inc/authkit-nextjs/components",
-              replacement: webPackage(
-                "@workos-inc/authkit-nextjs/dist/esm/components/index.js"
-              ),
-            },
-            {
               find: "convex/react",
               replacement: projectRequire.resolve("convex/react"),
             },

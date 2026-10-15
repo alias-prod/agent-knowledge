@@ -8,7 +8,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { getCurrentOrgId } from "@/lib/org";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth } from "@/lib/auth-context";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { canManageKnowledge } from "@/lib/role";
 import { ConfirmDialog } from "../../../components/ConfirmDialog";

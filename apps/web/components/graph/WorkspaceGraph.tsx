@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useConvexAuth, useQuery } from "convex/react";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth } from "@/lib/auth-context";
 import { api } from "../../../../convex/_generated/api";
 import { getCurrentOrgId } from "@/lib/org";
 import { Button } from "@/components/ui/button";

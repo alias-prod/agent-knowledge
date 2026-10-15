@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth } from "@/lib/auth-context";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { useCurrentOrganization } from "@/lib/auth-context";
 import { useToast } from "../../components/ToastProvider";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useState } from "react";
 import { SkeletonList } from "../../components/Skeleton";
 
 export default function ReviewsPage() {
+  const organizationId = useCurrentOrganization();
   const { showToast } = useToast();
   const { user } = useAuth({ ensureSignedIn: true });
   const [reviewTargetId, setReviewTargetId] = useState<Id<"knowledge"> | null>(
@@ -19,7 +20,7 @@ export default function ReviewsPage() {
   );
 
   const reviewItems = useQuery(api.knowledge.listKnowledgeDueForReview, {
-    organizationId: DEFAULT_ORG_ID,
+    organizationId: organizationId,
     reviewAfterDays: 90,
   });
 
@@ -29,7 +30,7 @@ export default function ReviewsPage() {
     try {
       await markReviewed({
         id: id as never,
-        organizationId: DEFAULT_ORG_ID,
+        organizationId: organizationId,
         workosUserId: user?.id ?? "",
         actorEmail: user?.email ?? "unknown-user"
       });

@@ -1,5 +1,6 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getSession } from "./auth";
 
 export const checkRateLimit = mutation({
   args: {
@@ -10,33 +11,38 @@ export const checkRateLimit = mutation({
     organizationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const session = await getSession(ctx);
+    if (!session?.user.emailVerified) throw new Error("Unauthorized");
+    if (args.route !== "ask-answer") throw new Error("Unsupported request budget");
+    const key = `user:${session.user.id}`;
+    const limit = 10;
+    const windowMs = 10 * 60 * 1000;
     const now = Date.now();
 
     const existing = await ctx.db
       .query("rateLimits")
       .withIndex("by_key_route", (q) =>
-        q.eq("key", args.key).eq("route", args.route)
+        q.eq("key", key).eq("route", args.route)
       )
       .first();
 
     if (!existing || existing.resetAt <= now) {
       await ctx.db.insert("rateLimits", {
-        key: args.key,
+        key: key,
         route: args.route,
-        organizationId: args.organizationId,
         count: 1,
-        resetAt: now + args.windowMs,
+        resetAt: now + windowMs,
         updatedAt: now,
       });
 
       return {
         allowed: true,
-        remaining: args.limit - 1,
-        resetAt: now + args.windowMs,
+        remaining: limit - 1,
+        resetAt: now + windowMs,
       };
     }
 
-    if (existing.count >= args.limit) {
+    if (existing.count >= limit) {
       throw new Error(
         `Rate limit exceeded. Try again after ${new Date(
           existing.resetAt
@@ -51,7 +57,7 @@ export const checkRateLimit = mutation({
 
     return {
       allowed: true,
-      remaining: Math.max(0, args.limit - existing.count - 1),
+      remaining: Math.max(0, limit - existing.count - 1),
       resetAt: existing.resetAt,
     };
   },

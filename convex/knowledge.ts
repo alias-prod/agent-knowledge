@@ -428,6 +428,7 @@ export const listRetrievalLogs = query({
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireMembershipForIdentity(ctx, args.organizationId);
     return await ctx.db
       .query("retrievalLogs")
       .withIndex("by_organization", (q) =>
@@ -449,6 +450,9 @@ export const logRetrievalSearch = mutation({
     actorEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const { identity } = await requireMembershipForIdentity(ctx, args.organizationId);
+    const agent = await ctx.db.get(args.agentId);
+    if (!agent || agent.organizationId !== args.organizationId) throw new Error("Unauthorized");
     const question = optionalText(args.question, "Question", LIMITS.question);
 
     if (!question) {
@@ -462,7 +466,7 @@ export const logRetrievalSearch = mutation({
       question,
       resultCount: args.resultCount,
       sourceTitles: args.sourceTitles,
-      actorEmail: args.actorEmail,
+      actorEmail: identity.email,
       createdAt: Date.now(),
     });
   },
@@ -560,6 +564,7 @@ export const listKnowledgeDueForReview = query({
     reviewAfterDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    await requireMembershipForIdentity(ctx, args.organizationId);
     const reviewAfterDays = args.reviewAfterDays ?? 90;
     const threshold = Date.now() - reviewAfterDays * 24 * 60 * 60 * 1000;
 

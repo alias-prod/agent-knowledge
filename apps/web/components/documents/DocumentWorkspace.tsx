@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth } from "@/lib/auth-context";
 import { useConvexAuth, useQuery } from "convex/react";
 import { FilePlus2, FileText, FolderTree, Library, Network, Search, ShieldCheck } from "lucide-react";
 import { KNOWLEDGE_TYPES, documentHref } from "@agent-knowledge/shared";

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { fetchAuthQuery, getToken } from "@/lib/auth-server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../../convex/_generated/api";
 
@@ -13,9 +13,9 @@ type Source = {
 
 export async function POST(request: Request) {
   try {
-    const { user } = await withAuth({ ensureSignedIn: true });
-
-    if (!user?.id) {
+    const account = await fetchAuthQuery(api.auth.getCurrentUser, {});
+    const user = account?.user;
+    if (!account?.workspace || !user?.emailVerified) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -61,6 +61,9 @@ export async function POST(request: Request) {
     }
 
     const convex = new ConvexHttpClient(convexUrl);
+    const token = await getToken();
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    convex.setAuth(token);
 
     await convex.mutation(api.security.checkRateLimit, {
       key: `user:${user.id}`,

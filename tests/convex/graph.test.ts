@@ -1,4 +1,4 @@
-import { convexTest } from "convex-test";
+import { createAuthTest, addIdentity } from "./authFixture";
 import { describe, expect, test } from "vitest";
 import { GRAPH_LIMITS } from "@agent-knowledge/shared";
 import { api } from "../../convex/_generated/api";
@@ -7,7 +7,7 @@ import schema from "../../convex/schema";
 const modules = import.meta.glob("../../convex/**/*.*s");
 
 async function fixture() {
-  const t = convexTest(schema, modules);
+  const t = createAuthTest();
   const ids = await t.run(async (ctx) => {
     const now = Date.now();
     const user = await ctx.db.insert("users", { workosUserId: "user-a", email: "a@example.com", createdAt: now, updatedAt: now });
@@ -23,7 +23,8 @@ async function fixture() {
     await ctx.db.insert("organizationSettings", { organizationId: "org-a", displayName: "Our workspace", defaultKnowledgeStatus: "draft", defaultCanUseToAnswer: false, defaultCanUseToAct: false, createdAt: now, updatedAt: now });
     return { agent, foreignAgent, knowledge };
   });
-  return { t, ids, asMember: t.withIdentity({ subject: "user-a" }) };
+  const member = await addIdentity(t, { name: "user-a", organizationId: "org-a", role: "member" });
+  return { t, ids, asMember: member.client };
 }
 
 describe("graph snapshot authorization and bounds", () => {
@@ -71,12 +72,13 @@ describe("graph snapshot authorization and bounds", () => {
   });
 
   test("returns an honest empty state for a new workspace", async () => {
-    const t = convexTest(schema, modules);
+    const t = createAuthTest();
     await t.run(async (ctx) => {
       const userId = await ctx.db.insert("users", { workosUserId: "empty-user", email: "empty@example.com", createdAt: 1, updatedAt: 1 });
       await ctx.db.insert("memberships", { userId, organizationId: "empty", role: "owner", createdAt: 1, updatedAt: 1 });
     });
-    const snapshot = await t.withIdentity({ subject: "empty-user" }).query(api.knowledge.getGraphSnapshot, { organizationId: "empty" });
+    const member = await addIdentity(t, { name: "empty-user", organizationId: "empty", role: "owner" });
+    const snapshot = await member.client.query(api.knowledge.getGraphSnapshot, { organizationId: "empty" });
     expect(snapshot.knowledge).toEqual([]);
     expect(snapshot.agents).toEqual([]);
     expect(snapshot.retrievals).toEqual([]);

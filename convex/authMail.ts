@@ -79,4 +79,16 @@ export function createAuthMailSender(
   };
 }
 
+export async function assertAuthMailReady(env: MailEnvironment) {
+  getAuthMailConfiguration(env);
+  const response = await fetch("https://api.resend.com/domains", {
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
+  });
+  if (!response.ok) throw new Error("Authentication email service is unavailable");
+  const payload = await response.json() as { data?: { name: string; status: string }[] };
+  if (!payload.data?.some((domain) => domain.name === env.RESEND_EMAIL_DOMAIN?.trim().toLowerCase() && domain.status === "verified")) {
+    throw new Error("Authentication email requires a verified sender domain");
+  }
+}
+
 export const sendAuthMail: SendAuthMail = (message) => createAuthMailSender(process.env)(message);

@@ -1,6 +1,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { inOrg } from "./tenancy";
+import { requireMembershipForIdentity } from "./permissions";
 
 function includesSearch(value: string | undefined, search: string) {
   return (value ?? "").toLowerCase().includes(search);
@@ -12,6 +13,7 @@ export const globalSearch = query({
     search: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireMembershipForIdentity(ctx, args.organizationId);
     const search = args.search.trim().toLowerCase();
 
     if (search.length < 2) {

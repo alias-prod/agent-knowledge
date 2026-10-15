@@ -1,58 +1,18 @@
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api } from "../../convex/_generated/api";
-import schema from "../../convex/schema";
-
-// Loaded relative to this file because the tests live outside the convex/ dir.
-const modules = import.meta.glob("../../convex/**/*.*s");
-
+import { createAuthTest, addIdentity } from "./authFixture";
 describe("convex-test harness", () => {
-  test("executes a real query against the real schema", async () => {
-    const t = convexTest(schema, modules);
-
-    const settings = await t.query(api.organizations.getOrganizationSettings, {
-      organizationId: "org_harness",
-    });
-
-    expect(settings.organizationId).toBe("org_harness");
-    expect(settings.displayName).toBe("ALIAS UCE Workspace");
+  test("executes a protected query against the real schema and auth component", async () => {
+    const t = createAuthTest(); const actor = await addIdentity(t, { name: "harness", organizationId: "org_harness", role: "member" });
+    expect(await actor.client.query(api.organizations.getOrganizationSettings, { organizationId: "org_harness" })).toMatchObject({ organizationId: "org_harness", displayName: "ALIAS UCE Workspace" });
   });
-
   test("returns rows seeded through the test database", async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-
-    await t.run(async (ctx) => {
-      const userId = await ctx.db.insert("users", { workosUserId: "harness-user", email: "harness@example.com", createdAt: now, updatedAt: now });
-      await ctx.db.insert("memberships", { userId, organizationId: "org_harness", role: "member", createdAt: now, updatedAt: now });
-      await ctx.db.insert("knowledge", {
-        title: "Refund policy",
-        content: "Refunds are issued within 30 days.",
-        category: "Company Policy",
-        status: "verified",
-        organizationId: "org_harness",
-        createdAt: now,
-        updatedAt: now,
-      });
-    });
-
-    const items = await t.withIdentity({ subject: "harness-user" }).query(api.knowledge.listKnowledge, {
-      organizationId: "org_harness",
-    });
-
-    expect(items).toHaveLength(1);
-    expect(items[0]?.title).toBe("Refund policy");
+    const t = createAuthTest(); const actor = await addIdentity(t, { name: "harness", organizationId: "org_harness", role: "member" });
+    await t.run((ctx) => ctx.db.insert("knowledge", { title: "Refund policy", content: "30 days.", category: "Policy", status: "verified", organizationId: "org_harness", createdAt: 1, updatedAt: 1 }));
+    expect(await actor.client.query(api.knowledge.listKnowledge, { organizationId: "org_harness" })).toHaveLength(1);
   });
-
   test("enforces schema validation on writes", async () => {
-    const t = convexTest(schema, modules);
-
-    await expect(
-      t.run(async (ctx) => {
-        await ctx.db.insert("knowledge", {
-          title: "Missing required fields",
-        } as never);
-      })
-    ).rejects.toThrow();
+    const t = createAuthTest();
+    await expect(t.run((ctx) => ctx.db.insert("knowledge", { title: "Missing required fields" } as never))).rejects.toThrow();
   });
 });

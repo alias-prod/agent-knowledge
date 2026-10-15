@@ -5,14 +5,15 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import Link from "next/link";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { useCurrentOrganization } from "@/lib/auth-context";
 import { canManageKnowledge } from "@/lib/role";
 import { useCurrentRole } from "@/lib/useCurrentRole";
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
+import { useAuth } from "@/lib/auth-context";
 import { useToast } from "../../components/ToastProvider";
 
 
 export default function AgentsPage() {
+  const organizationId = useCurrentOrganization();
     const { user } = useAuth();
     const { showToast } = useToast();
 
@@ -23,7 +24,7 @@ export default function AgentsPage() {
     const [roleFilter, setRoleFilter] = useState("all");
 
     const agents = useQuery(api.agents.listAgents, {
-        organizationId: DEFAULT_ORG_ID,
+        organizationId: organizationId,
         search,
         status: statusFilter,
         role: roleFilter,
@@ -56,7 +57,7 @@ export default function AgentsPage() {
                     description,
                     role,
                     status,
-                    organizationId: DEFAULT_ORG_ID,
+                    organizationId: organizationId,
                     actorEmail: user?.email ?? "unknown-user",
                     workosUserId: user?.id ?? "",
                 });
@@ -68,7 +69,7 @@ export default function AgentsPage() {
                     description,
                     role,
                     status,
-                    organizationId: DEFAULT_ORG_ID,
+                    organizationId: organizationId,
                     actorEmail: user?.email ?? "unknown-user",
                     workosUserId: user?.id ?? "",
                 };

@@ -4,16 +4,17 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { useCurrentOrganization } from "@/lib/auth-context";
 
 export default function SearchPage() {
+  const organizationId = useCurrentOrganization();
   const [search, setSearch] = useState("");
 
   const results = useQuery(
     api.search.globalSearch,
     search.trim().length >= 2
       ? {
-          organizationId: DEFAULT_ORG_ID,
+          organizationId: organizationId,
           search,
         }
       : "skip"

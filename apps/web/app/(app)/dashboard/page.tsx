@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { useCurrentOrganization } from "@/lib/auth-context";
 import { SkeletonCard, SkeletonList } from "../../components/Skeleton";
 
 export default function DashboardPage() {
+  const organizationId = useCurrentOrganization();
   const metrics = useQuery(api.dashboard.getDashboardMetrics, {
-    organizationId: DEFAULT_ORG_ID,
+    organizationId: organizationId,
   });
 
   const setupItems = metrics

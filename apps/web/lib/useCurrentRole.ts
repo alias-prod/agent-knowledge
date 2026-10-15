@@ -1,35 +1,5 @@
 "use client";
-
-import { useAuth } from "@workos-inc/authkit-nextjs/components";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { getCurrentOrgId } from "@/lib/org";
+import { useAuth } from "./auth-context";
 import type { CurrentRole } from "@agent-knowledge/shared";
-
 export type { CurrentRole };
-
-export function useCurrentRole(): CurrentRole {
-  const auth = useAuth({ ensureSignedIn: true });
-  const { user, loading } = auth;
-
-  const organizationId =
-    "organizationId" in auth ? auth.organizationId : undefined;
-
-  const currentOrgId = getCurrentOrgId(organizationId);
-
-  const membershipData = useQuery(
-    api.users.getMembershipByWorkosUser,
-    !loading && user?.id
-      ? {
-          workosUserId: user.id,
-          organizationId: currentOrgId,
-        }
-      : "skip"
-  );
-
-  if (loading) return "loading";
-  if (!user?.id) return "loading";
-  if (membershipData === undefined) return "loading";
-
-  return membershipData?.membership.role ?? "member";
-}
+export function useCurrentRole(): CurrentRole { return useAuth().role; }

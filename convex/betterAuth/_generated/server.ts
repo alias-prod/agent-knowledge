@@ -106,8 +106,6 @@ export const internalAction: ActionBuilder<DataModel, "internal"> =
  * @returns The wrapped function. Import this function from `convex/http.js` and route it to hook it up.
  */
 export const httpAction: HttpActionBuilder = httpActionGeneric;
-export const env: Record<string, string | undefined> =
-  process.env as unknown as Record<string, string | undefined>;
 
 /**
  * A set of services for use within Convex query functions.

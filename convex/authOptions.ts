@@ -1,10 +1,10 @@
 import type { BetterAuthOptions } from "better-auth/minimal";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { organization } from "better-auth/plugins";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { getAuthConfigProvider } from "@convex-dev/better-auth/auth-config";
 import { getAuthEnvironment } from "./authEnvironment";
-import { sendAuthMail } from "./authMail";
+import { sendAuthMail, assertAuthMailReady } from "./authMail";
 
 export type AuthMail = {
   kind: "verification" | "reset" | "invitation";
@@ -23,6 +23,14 @@ export function createAuthOptions(
   return {
     ...configuration,
     database,
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (["/sign-up/email", "/send-verification-email", "/request-password-reset", "/organization/invite-member"].includes(ctx.path)) {
+          try { await assertAuthMailReady(process.env); }
+          catch { throw new APIError("SERVICE_UNAVAILABLE", { message: "Authentication email is unavailable. Ask your administrator to verify the sender domain." }); }
+        }
+      }),
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
@@ -39,6 +47,17 @@ export function createAuthOptions(
       },
     },
     session: configuration.session,
+    rateLimit: {
+      enabled: true,
+      storage: "database",
+      window: 60,
+      max: 100,
+      customRules: {
+        "/sign-in/email": { window: 60, max: 5 },
+        "/sign-up/email": { window: 60, max: 3 },
+        "/request-password-reset": { window: 60, max: 3 },
+      },
+    },
     plugins: [
       organization({
         allowUserToCreateOrganization: async (user) => user.emailVerified === true,

@@ -2,12 +2,13 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { useCurrentOrganization } from "@/lib/auth-context";
 import { SkeletonList } from "../../components/Skeleton";
 
 export default function AuditPage() {
+  const organizationId = useCurrentOrganization();
     const auditLogs = useQuery(api.agents.listAuditLogs, {
-        organizationId: DEFAULT_ORG_ID,
+        organizationId: organizationId,
     });
 
     function getAuditDescription(log: {

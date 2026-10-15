@@ -87,7 +87,7 @@ const workflow = [
 
 const trustPoints = [
   {
-    title: "WorkOS authentication",
+    title: "Verified workspace access",
     description: "Enterprise-ready identity and secure session management.",
     icon: KeyRound,
   },

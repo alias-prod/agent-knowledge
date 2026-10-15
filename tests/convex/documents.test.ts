@@ -1,5 +1,5 @@
 import * as Y from "yjs";
-import { convexTest } from "convex-test";
+import { createAuthTest, addIdentity } from "./authFixture";
 import { describe, expect, test } from "vitest";
 import { DOCUMENT_LIMITS } from "@agent-knowledge/shared";
 import { api } from "../../convex/_generated/api";
@@ -8,7 +8,7 @@ import schema from "../../convex/schema";
 const modules = import.meta.glob("../../convex/**/*.*s");
 
 async function fixture() {
-  const t = convexTest(schema, modules);
+  const t = createAuthTest();
   const ids = await t.run(async (ctx) => {
     const now = Date.now();
     for (const [subject, organizationId, role] of [
@@ -24,7 +24,10 @@ async function fixture() {
     const foreign = await ctx.db.insert("knowledge", { title: "Foreign knowledge", content: "Private content", category: "Policy", status: "verified", organizationId: "org-b", createdAt: now, updatedAt: now });
     return { agent, foreignAgent, foreign };
   });
-  return { t, ids, owner: t.withIdentity({ subject: "owner" }), member: t.withIdentity({ subject: "member" }), foreignOwner: t.withIdentity({ subject: "foreign-owner" }) };
+  const owner = await addIdentity(t, { name: "owner", organizationId: "org-a", role: "owner" });
+  const member = await addIdentity(t, { name: "member", organizationId: "org-a", role: "member" });
+  const foreign = await addIdentity(t, { name: "foreign-owner", organizationId: "org-b", role: "owner" });
+  return { t, ids, owner: owner.client, member: member.client, foreignOwner: foreign.client, ownerId: owner.userId };
 }
 
 function replica(state: ArrayBuffer) {
@@ -39,13 +42,13 @@ function update(doc: Y.Doc) {
 
 describe("integrated document workspace", () => {
   test("creates a real knowledge record with safe agent defaults and a verified audit actor", async () => {
-    const { t, owner } = await fixture();
+    const { t, owner, ownerId } = await fixture();
     const id = await owner.mutation(api.knowledge.createDocument, { organizationId: "org-a", title: "  Access policy  ", documentType: "policy", content: "Initial policy" });
     const document = await owner.query(api.knowledge.getDocument, { organizationId: "org-a", id });
     expect(document).toMatchObject({ id, title: "Access policy", documentType: "policy", status: "draft", requiresApproval: true, canUseToAnswer: false, canUseToAct: false, allowedAgentIds: [] });
     const record = await t.run((ctx) => ctx.db.get(id));
     expect(record?.organizationId).toBe("org-a");
-    expect(record?.ownerId).toBe("owner");
+    expect(record?.ownerId).toBe(ownerId);
     const logs = await t.run((ctx) => ctx.db.query("auditLogs").collect());
     expect(logs).toContainEqual(expect.objectContaining({ knowledgeId: id, actorEmail: "owner@example.com", action: "created" }));
     const library = await owner.query(api.knowledge.listKnowledge, { organizationId: "org-a" });

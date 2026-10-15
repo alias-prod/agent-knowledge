@@ -1,18 +1,23 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { inOrg } from "./tenancy";
+import { requireMembershipForIdentity } from "./permissions";
+import { authComponent, createAuth } from "./auth";
 
 export const getDashboardMetrics = query({
   args: {
     organizationId: v.string(),
   },
   handler: async (ctx, args) => {
+    const { authOrganizationId } = await requireMembershipForIdentity(ctx, args.organizationId);
+    const { auth, headers } = await authComponent.getAuth(createAuth, ctx);
+    const members = await auth.api.listMembers({ query: { organizationId: authOrganizationId }, headers });
     const now = Date.now();
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
 
     const knowledgeItems = await ctx.db.query("knowledge").collect();
     const agents = await ctx.db.query("agents").collect();
-    const memberships = await ctx.db.query("memberships").collect();
+
     const auditLogs = await ctx.db.query("auditLogs").collect();
     const retrievalLogs = await ctx.db.query("retrievalLogs").collect();
 
@@ -20,7 +25,7 @@ export const getDashboardMetrics = query({
 
     const orgKnowledge = knowledgeItems.filter(matchesOrg);
     const orgAgents = agents.filter(matchesOrg);
-    const orgMemberships = memberships.filter(matchesOrg);
+    const orgMemberships = members.members;
     const orgAuditLogs = auditLogs.filter(matchesOrg);
     const orgRetrievalLogs = retrievalLogs.filter(matchesOrg);
 

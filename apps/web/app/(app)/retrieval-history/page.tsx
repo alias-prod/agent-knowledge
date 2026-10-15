@@ -2,13 +2,14 @@
 
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
-import { DEFAULT_ORG_ID } from "@/lib/org";
+import { useCurrentOrganization } from "@/lib/auth-context";
 import { useMemo, useState } from "react";
 import { SkeletonList } from "../../components/Skeleton";
 
 export default function RetrievalHistoryPage() {
+  const organizationId = useCurrentOrganization();
     const logs = useQuery(api.knowledge.listRetrievalLogs, {
-        organizationId: DEFAULT_ORG_ID,
+        organizationId: organizationId,
 
     });
 

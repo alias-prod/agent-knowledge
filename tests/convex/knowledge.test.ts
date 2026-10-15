@@ -1,113 +1,19 @@
-import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import { api } from "../../convex/_generated/api";
-import schema from "../../convex/schema";
-
-const modules = import.meta.glob("../../convex/**/*.*s");
-
-const baseArgs = {
-  title: "Refund policy",
-  content: "Refunds are issued within 30 days.",
-  category: "Company Policy",
-  status: "verified" as const,
-  canUseToAnswer: true,
-  canUseToAct: false,
-  requiresApproval: false,
-  organizationId: "org_test",
-};
-
+import { createAuthTest, addIdentity } from "./authFixture";
+const args = { title: "Refund policy", content: "Refunds within 30 days.", category: "Policy", status: "verified" as const, canUseToAnswer: true, canUseToAct: false, requiresApproval: false, organizationId: "org_test", workosUserId: "forged-legacy-admin" };
 describe("knowledge mutation authorization", () => {
-  test("authorizes using ctx.auth's verified identity over the caller-supplied workosUserId", async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-
-    await t.run(async (ctx) => {
-      // Caller-supplied workosUserId has no membership at all.
-      const verifiedUserId = await ctx.db.insert("users", {
-        workosUserId: "workos_verified_admin",
-        email: "verified@example.com",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await ctx.db.insert("memberships", {
-        userId: verifiedUserId,
-        organizationId: "org_test",
-        role: "admin",
-        createdAt: now,
-        updatedAt: now,
-      });
-    });
-
-    const asVerifiedAdmin = t.withIdentity({ subject: "workos_verified_admin" });
-
-    const knowledgeId = await asVerifiedAdmin.mutation(api.knowledge.createKnowledge, {
-      ...baseArgs,
-      workosUserId: "workos_no_membership",
-    });
-
-    expect(knowledgeId).toBeTruthy();
+  test("authorizes the live Better Auth admin, not caller identity hints", async () => {
+    const t = createAuthTest(); const actor = await addIdentity(t, { name: "admin", organizationId: "org_test", role: "admin" });
+    expect(await actor.client.mutation(api.knowledge.createKnowledge, args)).toBeTruthy();
   });
-
-  test("rejects when ctx.auth's verified identity lacks admin membership, even if the caller-supplied workosUserId would qualify", async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-
-    await t.run(async (ctx) => {
-      // The caller-supplied workosUserId IS an admin, but authorization must
-      // now run off the verified identity, not this argument.
-      const adminUserId = await ctx.db.insert("users", {
-        workosUserId: "workos_admin",
-        email: "admin@example.com",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await ctx.db.insert("memberships", {
-        userId: adminUserId,
-        organizationId: "org_test",
-        role: "admin",
-        createdAt: now,
-        updatedAt: now,
-      });
-    });
-
-    const asUnprivilegedUser = t.withIdentity({ subject: "workos_no_membership" });
-
-    await expect(
-      asUnprivilegedUser.mutation(api.knowledge.createKnowledge, {
-        ...baseArgs,
-        workosUserId: "workos_admin",
-      })
-    ).rejects.toThrow("Unauthorized");
+  test("a member cannot forge an admin identity", async () => {
+    const t = createAuthTest(); const actor = await addIdentity(t, { name: "member", organizationId: "org_test", role: "member" });
+    await expect(actor.client.mutation(api.knowledge.createKnowledge, args)).rejects.toThrow("Unauthorized");
   });
-
-  test("rejects the caller when ctx.auth has no identity, even if workosUserId would qualify as admin", async () => {
-    const t = convexTest(schema, modules);
-    const now = Date.now();
-
-    await t.run(async (ctx) => {
-      const adminUserId = await ctx.db.insert("users", {
-        workosUserId: "workos_admin",
-        email: "admin@example.com",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await ctx.db.insert("memberships", {
-        userId: adminUserId,
-        organizationId: "org_test",
-        role: "admin",
-        createdAt: now,
-        updatedAt: now,
-      });
-    });
-
-    await expect(
-      t.mutation(api.knowledge.createKnowledge, {
-        ...baseArgs,
-        workosUserId: "workos_admin",
-      })
-    ).rejects.toThrow("Unauthorized");
+  test("anonymous and old provider JWT identities cannot write", async () => {
+    const t = createAuthTest();
+    await expect(t.mutation(api.knowledge.createKnowledge, args)).rejects.toThrow("Unauthorized");
+    await expect(t.withIdentity({ subject: "forged-legacy-admin" }).mutation(api.knowledge.createKnowledge, args)).rejects.toThrow("Unauthorized");
   });
 });
