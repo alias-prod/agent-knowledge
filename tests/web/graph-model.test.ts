@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { GraphSnapshot } from "@agent-knowledge/shared";
-import { buildGraphModel, filterGraphTree, groupSiblings, listGraphNodes, safeSourceUrl, type ExplorerNode } from "../../apps/web/lib/graph";
+import { buildGraphModel, filterGraphTree, graphViewSummary, groupSiblings, listGraphNodes, safeSourceUrl, type ExplorerNode } from "../../apps/web/lib/graph";
 import { ONTOLOGY_ENTITIES } from "../../apps/web/lib/graph-ontology";
 
 const snapshot: GraphSnapshot = {
@@ -98,6 +98,43 @@ describe("company brain graph adapter", () => {
 
   test.each(["javascript:alert(1)", "data:text/html,bad", "not a url", "file:///etc/passwd"])("rejects unsafe source URL %s", (url) => {
     expect(safeSourceUrl(url)).toBeUndefined();
+  });
+
+  test("excludes layout-only groups from browsable data and summaries", () => {
+    const graph = buildGraphModel();
+    const nodes = listGraphNodes(graph.lenses.ontology);
+    expect([...graph.index.values()].some(({ node }) => node.layoutOnly)).toBe(true);
+    expect(nodes.every((node) => !node.layoutOnly)).toBe(true);
+    expect(graphViewSummary(nodes, graph.edges)).toEqual({
+      entities: ONTOLOGY_ENTITIES.length,
+      attributes: ONTOLOGY_ENTITIES.reduce((count, entity) => count + entity.fields.length, 0),
+      relationships: graph.edges.length,
+    });
+  });
+
+  test("recounts filtered categories and fields through layout groups", () => {
+    const graph = buildGraphModel({ ...snapshot, knowledge: snapshot.knowledge.map((item) => ({ ...item, category: "Shared" })) });
+    const filtered = filterGraphTree(graph.lenses.knowledge, "", "verified");
+    expect(filtered.children?.[0].value).toBe("1 item");
+    const fields = filterGraphTree(graph.lenses.ontology, "allowedAgentIds", "all");
+    expect(listGraphNodes(fields).find((node) => node.id === "type:knowledge")?.value).toBe("1 field");
+    expect(listGraphNodes(filterGraphTree(graph.lenses.ontology, "Items 1–2", "all"))).toEqual([]);
+  });
+
+  test("searches attribute labels and keeps matching agents with filtered-out assignments", () => {
+    const graph = buildGraphModel(snapshot);
+    expect(listGraphNodes(filterGraphTree(graph.lenses.knowledge, "Approval", "all")).filter((node) => node.kind === "knowledge")).toHaveLength(2);
+    const agents = listGraphNodes(filterGraphTree(graph.lenses.context, "Support", "draft"));
+    expect(agents.find((node) => node.id === "agent:support")?.children).toEqual([]);
+    expect(agents.some((node) => node.kind === "knowledge")).toBe(false);
+  });
+
+  test("deduplicates entity occurrences and only counts edges with both endpoints visible", () => {
+    const graph = buildGraphModel(snapshot);
+    const nodes = listGraphNodes(graph.lenses.context);
+    expect(nodes.filter((node) => node.entityId === "knowledge:policy").length).toBeGreaterThan(1);
+    expect(graphViewSummary(nodes, graph.edges)).toEqual({ entities: 5, attributes: 0, relationships: 2 });
+    expect(graphViewSummary(listGraphNodes(graph.lenses.knowledge), graph.edges).relationships).toBe(0);
   });
 
   test("allows ordinary web source URLs", () => {

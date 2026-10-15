@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function OntologyPage() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="ontology-shell min-h-dvh bg-background text-foreground">
       <a href="#ontology-content" className="sr-only focus:not-sr-only focus:block focus:p-4">Skip to ontology explorer</a>
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 py-4 sm:px-8">

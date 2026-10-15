@@ -82,6 +82,28 @@ describe("graph explorer controls", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Ontology Explorer");
   });
 
+  test("shows truthful scope and omits synthetic nodes from browsing", () => {
+    render(<GraphExplorer />);
+    expect(screen.getByText(/8 unique entities · 49 attributes · 12 relationships/)).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Graph nodes" })).queryByRole("button", { name: /Items 1/ })).not.toBeInTheDocument();
+  });
+
+  test("clears filters when following a relationship to a hidden node", () => {
+    window.history.replaceState(null, "", "/ontology?view=list&q=allowedAgentIds&node=type%3Aknowledge");
+    const view = render(<GraphExplorer />);
+    const inspector = screen.getByRole("region", { name: "Node Inspector" });
+    fireEvent.click(within(inspector).getByRole("button", { name: /Knowledge.*assigned to.*Agents/ }));
+    view.rerender(<GraphExplorer />);
+    expect(screen.getByRole("searchbox", { name: "Search graph nodes" })).toHaveValue("");
+    expect(within(screen.getByRole("list", { name: "Graph nodes" })).getByRole("button", { pressed: true })).toHaveTextContent("Agents");
+  });
+
+  test("opens the list page containing a deep-linked selected node", () => {
+    window.history.replaceState(null, "", "/ontology?view=list&node=type%3AauditLogs");
+    render(<GraphExplorer />);
+    expect(within(screen.getByRole("list", { name: "Graph nodes" })).getByRole("button", { pressed: true })).toHaveTextContent("Audit events");
+  });
+
   test("renders the live empty state without substituting demo records", () => {
     const snapshot: GraphSnapshot = { organizationId: "empty", organizationName: "Empty workspace", knowledge: [], agents: [], retrievals: [], truncated: { knowledge: false, agents: false, retrievals: false } };
     window.history.replaceState(null, "", "/graph?lens=knowledge");

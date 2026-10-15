@@ -11,7 +11,7 @@ export function GraphInspector({ node, model, onSelect, onFocus }: { node?: Expl
   const edges = node?.entityId ? model.edges.filter((edge) => edge.source === node.entityId || edge.target === node.entityId) : [];
 
   return (
-    <section id="graph-inspector" className="graph-panel scroll-mt-6" aria-labelledby="graph-inspector-title" aria-live="polite">
+    <section id="graph-inspector" tabIndex={-1} className="graph-panel scroll-mt-6" aria-labelledby="graph-inspector-title" aria-live="polite">
       <div className="graph-panel-heading">
         <h2 id="graph-inspector-title" className="text-base font-medium">Node Inspector</h2>
         {node && <span className="text-sm capitalize text-muted-foreground">{node.kind}</span>}
@@ -25,6 +25,7 @@ export function GraphInspector({ node, model, onSelect, onFocus }: { node?: Expl
       ) : (
         <div className="graph-inspector-content">
           <div>
+            <p className="mb-2 break-words text-sm leading-6 text-muted-foreground">{model.index.get(node.id)?.path.slice(0, -1).flatMap((id) => { const ancestor = model.index.get(id)?.node; return ancestor && !ancestor.layoutOnly ? [ancestor.title] : []; }).join(" / ")}</p>
             <h3 className="break-words font-display text-3xl leading-tight tracking-wide text-balance">{node.title}</h3>
             {node.description && <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">{node.description}</p>}
           </div>
@@ -46,6 +47,7 @@ export function GraphInspector({ node, model, onSelect, onFocus }: { node?: Expl
           </div>
           <div>
             <h4 className="text-sm font-medium">{node.kind === "type" ? "Schema Relationships" : "Recorded Relationships"} <span className="text-muted-foreground">({edges.length})</span></h4>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Connections use the full loaded snapshot, including nodes outside the current filters.</p>
             {edges.length ? (
               <ul className="mt-3 flex flex-col gap-2">
                 {edges.slice(0, edgeLimit).map((edge) => {

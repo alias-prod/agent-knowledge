@@ -8,7 +8,7 @@ import type { ExplorerNode } from "@/lib/graph";
 const PAGE_SIZE = 16;
 
 export function GraphNodeList({ nodes, selectedId, onSelect }: { nodes: ExplorerNode[]; selectedId?: string; onSelect: (id: string) => void }) {
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(() => Math.max(0, Math.floor(nodes.findIndex((node) => node.id === selectedId) / PAGE_SIZE)));
   const currentPage = Math.min(page, Math.max(0, Math.ceil(nodes.length / PAGE_SIZE) - 1));
   const visible = nodes.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
 
@@ -24,7 +24,7 @@ export function GraphNodeList({ nodes, selectedId, onSelect }: { nodes: Explorer
             <button type="button" className="graph-node-row" aria-pressed={selectedId === node.id} onClick={() => onSelect(node.id)}>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{node.title}</span>
-                <span className="block truncate text-sm text-muted-foreground">{node.kind}{node.value ? ` · ${node.value}` : ""}</span>
+                <span className="block truncate text-sm text-muted-foreground">{node.kind}{node.value ? ` · ${node.value}` : ""}{node.kind === "field" ? ` · ${node.facts?.find((fact) => fact.label === "Entity type")?.value ?? ""}` : ""}</span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             </button>

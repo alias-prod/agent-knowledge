@@ -15,6 +15,7 @@ export const GRAPH_LENSES: { id: GraphLens; label: string; description: string }
 
 export interface ExplorerNode extends BrainNode {
   kind: NodeKind;
+  layoutOnly?: boolean;
   entityId?: string;
   status?: GraphKnowledge["status"];
   href?: string;
@@ -78,12 +79,12 @@ export function groupSiblings(nodes: ExplorerNode[], parentId: string): Explorer
   for (let start = 0; start < children.length; start += size) {
     const page = children.slice(start, start + size);
     const id = `${parentId}:group:${page[0].id}`;
-    groups.push(group(
+    groups.push({ ...group(
       id,
       `Items ${start + 1}–${start + page.length}`,
       `${page[0].title} through ${page[page.length - 1].title}`,
       groupSiblings(page, id),
-    ));
+    ), layoutOnly: true });
   }
   return groups;
 }
@@ -170,7 +171,7 @@ export function buildGraphModel(snapshot?: GraphSnapshot): GraphModel {
       facts: [
         { label: "Status", value: agent.status },
         { label: "Role", value: agent.role || "Not specified" },
-        { label: "Assignments in this view", value: String(assigned.length) },
+        { label: "Assignments in loaded snapshot", value: String(assigned.length) },
       ],
       children: assigned.length ? assigned : undefined,
     };
@@ -205,7 +206,7 @@ export function buildGraphModel(snapshot?: GraphSnapshot): GraphModel {
     group("context:agents", "Agent assignments", "Explore explicitly assigned knowledge for each agent.", agents),
     policyGroup("context:answers", "Answer-enabled", "Verified knowledge with answer permission. Agents still need explicit assignment.", (item) => item.status === "verified" && item.canUseToAnswer),
     policyGroup("context:actions", "Action-enabled", "Records with action permission enabled. This is a permission flag, not proof an action occurred.", (item) => item.canUseToAct),
-    policyGroup("context:approvals", "Awaiting approval", "Knowledge flagged for human approval.", (item) => item.requiresApproval),
+    policyGroup("context:approvals", "Approval required", "Knowledge requiring human approval before use. This flag is not a pending approval request.", (item) => item.requiresApproval),
     policyGroup("context:unassigned", "Unassigned in view", "No assignment to an agent in the loaded snapshot. A larger workspace may have additional agents.", (item) => !item.allowedAgentIds.some((id) => agentIds.has(id))),
     group("context:retrievals", "Retrieval activity", "Recent questions and their recorded agent connections.", retrievals),
   ]);
@@ -252,20 +253,36 @@ export function filterGraphTree(root: ExplorerNode, search: string, status: Grap
   const query = search.trim().toLocaleLowerCase("en");
   function visit(node: ExplorerNode, ancestorMatches: boolean): ExplorerNode | null {
     if (node.kind === "knowledge" && status !== "all" && node.status !== status) return null;
-    const matches = ancestorMatches || !query || [node.title, node.description, ...(node.facts?.map((fact) => fact.value) ?? [])]
-      .join(" ").toLocaleLowerCase("en").includes(query);
+    const matches = ancestorMatches || !query || (!node.layoutOnly && [node.title, node.description, ...(node.facts?.map((fact) => `${fact.label} ${fact.value}`) ?? [])]
+      .join(" ").toLocaleLowerCase("en").includes(query));
     const children = node.children?.map((child) => visit(child, matches)).filter((child): child is ExplorerNode => child !== null);
     if (!matches && !children?.length) return null;
-    if (node.children?.length && !children?.length) return null;
-    return { ...node, ...(children ? { children } : {}) };
+    if (node.children?.length && !children?.length && node.kind !== "agent") return null;
+    const count = children?.reduce((total, child) => total + (child.layoutOnly ? logicalChildren(child).length : 1), 0);
+    const value = count !== undefined && ["group", "category", "type"].includes(node.kind)
+      ? countLabel(count, node.kind === "type" ? "field" : "item") : node.value;
+    return { ...node, value, ...(children ? { children } : {}) };
   }
   return { ...root, children: root.children?.map((child) => visit(child, false)).filter((child): child is ExplorerNode => child !== null) ?? [] };
+}
+
+function logicalChildren(node: ExplorerNode): ExplorerNode[] {
+  return node.children?.flatMap((child) => child.layoutOnly ? logicalChildren(child) : [child]) ?? [];
+}
+
+export function graphViewSummary(nodes: ExplorerNode[], edges: GraphEdge[]) {
+  const entities = new Set(nodes.flatMap((node) => node.entityId ? [node.entityId] : []));
+  return {
+    entities: entities.size,
+    attributes: nodes.filter((node) => node.kind === "field").length,
+    relationships: edges.filter((edge) => entities.has(edge.source) && entities.has(edge.target)).length,
+  };
 }
 
 export function listGraphNodes(root: ExplorerNode): ExplorerNode[] {
   const nodes: ExplorerNode[] = [];
   function visit(node: ExplorerNode) {
-    nodes.push(node);
+    if (!node.layoutOnly) nodes.push(node);
     node.children?.forEach(visit);
   }
   root.children?.forEach(visit);
