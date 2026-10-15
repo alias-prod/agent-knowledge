@@ -25,7 +25,10 @@
   },
   "dependencies": {
     "@agent-knowledge/shared": "workspace:*",
+    "@convex-dev/better-auth": "0.12.5",
+    "better-auth": "1.6.15",
     "convex": "^1.39.1",
+    "convex-helpers": "0.1.120",
     "yjs": "^13.6.33"
   }
 }

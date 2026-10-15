@@ -47,6 +47,7 @@ export default defineSchema({
 
   users: defineTable({
     workosUserId: v.optional(v.string()),
+    betterAuthUserId: v.optional(v.string()),
     email: v.string(),
     name: v.optional(v.string()),
 
@@ -56,7 +57,30 @@ export default defineSchema({
 
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_workosUserId", ["workosUserId"]),
+  })
+    .index("by_workosUserId", ["workosUserId"])
+    .index("by_betterAuthUserId", ["betterAuthUserId"]),
+
+  authOrganizationMappings: defineTable({
+    betterAuthOrganizationId: v.string(),
+    organizationId: v.string(),
+    source: v.union(v.literal("migration"), v.literal("created")),
+    createdAt: v.number(),
+  })
+    .index("by_auth_organization", ["betterAuthOrganizationId"])
+    .index("by_organization", ["organizationId"]),
+
+  authMigrationLinks: defineTable({
+    runId: v.string(),
+    userId: v.id("users"),
+    betterAuthUserId: v.string(),
+    workosUserId: v.string(),
+    reviewedBy: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_auth_user", ["betterAuthUserId"])
+    .index("by_run", ["runId"]),
 
   memberships: defineTable({
     userId: v.id("users"),
