@@ -9,6 +9,22 @@ describe("audit log actor identity", () => {
     const log = await t.run((ctx) => ctx.db.query("auditLogs").first());
     expect(log).toMatchObject({ action: "agent.created", actorId: actor.userId, actorUserId: actor.userId, actorEmail: "admin@example.com" });
   });
+  test("creates a draft document and its authenticated audit event together", async () => {
+    const t = createAuthTest();
+    const actor = await addIdentity(t, { name: "owner", organizationId: "org_test", role: "owner" });
+    const id = await actor.client.mutation(api.knowledge.createDocument, {
+      organizationId: "org_test", title: "Migration QA Policy", documentType: "policy",
+    });
+    const { document, log } = await t.run(async (ctx) => ({
+      document: await ctx.db.get(id),
+      log: await ctx.db.query("auditLogs").first(),
+    }));
+    expect(document).toMatchObject({ status: "draft", canUseToAnswer: false, canUseToAct: false });
+    expect(log).toMatchObject({
+      action: "created", knowledgeId: id, organizationId: "org_test",
+      actorId: actor.userId, actorUserId: actor.userId, actorEmail: "owner@example.com",
+    });
+  });
   test("refuses to create an audit event for an unauthenticated mutation", async () => {
     const t = createAuthTest();
     await expect(t.mutation(api.agents.createAgent, args)).rejects.toThrow("Unauthorized");
