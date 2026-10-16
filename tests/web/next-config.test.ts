@@ -3,6 +3,7 @@
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import turboConfig from "../../turbo.json";
+import vercelConfig from "../../vercel.json";
 
 const mocks = vi.hoisted(() => ({
   existsSync: vi.fn(),
@@ -81,6 +82,12 @@ describe("workspace environment configuration", () => {
     await import("../../apps/web/next.config");
 
     expect(mocks.loadEnvFile).not.toHaveBeenCalled();
+  });
+
+  test("packages the web workspace as Next.js instead of a generic root deployment", () => {
+    expect(vercelConfig.framework).toBe("nextjs");
+    expect(vercelConfig.buildCommand).toBe("bun run build");
+    expect(vercelConfig.outputDirectory).toBe("apps/web/.next");
   });
 
   test("includes endpoint and origin configuration in Turbo task inputs", () => {
