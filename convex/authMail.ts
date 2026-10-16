@@ -80,12 +80,37 @@ export function createAuthMailSender(
 }
 
 export async function assertAuthMailReady(env: MailEnvironment) {
-  getAuthMailConfiguration(env);
-  const response = await fetch("https://api.resend.com/domains", {
-    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
-  });
-  if (!response.ok) throw new Error("Authentication email service is unavailable");
-  const payload = await response.json() as { data?: { name: string; status: string }[] };
+  const configuration = getAuthMailConfiguration(env);
+  const headers = { Authorization: `Bearer ${env.RESEND_API_KEY}` };
+  const response = await fetch("https://api.resend.com/domains", { headers });
+  const payload = await response.json() as {
+    name?: string;
+    data?: { name: string; status: string }[];
+  };
+  if (!response.ok) {
+    if (response.status !== 401 || payload.name !== "restricted_api_key") {
+      throw new Error("Authentication email service is unavailable");
+    }
+    // Sending-only keys cannot inspect domains. Resend's delivery simulator still
+    // checks sender permissions and verification without emailing a real inbox.
+    const probe = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+        "Idempotency-Key": `auth-readiness/${env.RESEND_EMAIL_DOMAIN?.trim().toLowerCase()}/${Math.floor(Date.now() / 300000)}`,
+      },
+      body: JSON.stringify({
+        from: configuration.from,
+        to: ["delivered@resend.dev"],
+        subject: "ALIAS authentication email readiness",
+        text: "Non-user delivery check for authentication email configuration.",
+      }),
+    });
+    const delivery = await probe.json() as { id?: string };
+    if (!probe.ok || !delivery.id) throw new Error("Authentication email service is unavailable");
+    return;
+  }
   if (!payload.data?.some((domain) => domain.name === env.RESEND_EMAIL_DOMAIN?.trim().toLowerCase() && domain.status === "verified")) {
     throw new Error("Authentication email requires a verified sender domain");
   }

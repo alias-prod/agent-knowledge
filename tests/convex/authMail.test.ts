@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { createAuthMailSender, getAuthMailConfiguration } from "../../convex/authMail";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { assertAuthMailReady, createAuthMailSender, getAuthMailConfiguration } from "../../convex/authMail";
 import type { AuthMail } from "../../convex/authOptions";
 import type { Resend } from "resend";
 
@@ -20,6 +20,58 @@ function setup(response: unknown = { data: { id: "email-id" }, error: null }) {
 }
 
 describe("Resend authentication delivery", () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+  it("verifies an exact domain with an inspection-capable key", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ data: [{ name: "mail.aliaslabs.ai", status: "verified" }] }));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(assertAuthMailReady({ ...env, RESEND_EMAIL_DOMAIN: "mail.aliaslabs.ai" })).resolves.toBeUndefined();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a key from a different workspace even when that workspace has a verified domain", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ data: [{ name: "agentworks.app", status: "verified" }] }));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(assertAuthMailReady({ ...env, RESEND_EMAIL_DOMAIN: "mail.aliaslabs.ai" })).rejects.toThrow("verified sender domain");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks sending-only credentials through the delivery simulator with bounded deduplication", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-16T12:00:00Z"));
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(Response.json({ name: "restricted_api_key" }, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ id: "probe-id" }));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(assertAuthMailReady({ ...env, RESEND_EMAIL_DOMAIN: "mail.aliaslabs.ai" })).resolves.toBeUndefined();
+    const [url, options] = fetcher.mock.calls[1];
+    expect(url).toBe("https://api.resend.com/emails");
+    expect(options.headers["Idempotency-Key"]).toBe(`auth-readiness/mail.aliaslabs.ai/${Math.floor(Date.now() / 300000)}`);
+    expect(JSON.parse(options.body)).toMatchObject({ from: "ALIAS <security@mail.aliaslabs.ai>", to: ["delivered@resend.dev"] });
+    expect(options.body).not.toContain("token");
+  });
+
+  it.each([401, 403, 429, 500])("fails closed when the sending-only delivery check returns %s", async (status) => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({ name: "restricted_api_key" }, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({ message: "private billing or domain details" }, { status })));
+    await expect(assertAuthMailReady(env)).rejects.toThrow("Authentication email service is unavailable");
+  });
+
+  it("does not treat unrelated authentication errors as sending-only permission", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ name: "invalid_api_key" }, { status: 401 }));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(assertAuthMailReady(env)).rejects.toThrow("Authentication email service is unavailable");
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not accept a probe without a delivery id", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({ name: "restricted_api_key" }, { status: 401 }))
+      .mockResolvedValueOnce(Response.json({})));
+    await expect(assertAuthMailReady(env)).rejects.toThrow("Authentication email service is unavailable");
+  });
+
   it.each(["verification", "reset", "invitation"] as const)("sends %s with plain text and escaped HTML", async (kind) => {
     const { send, sender } = setup();
     await sender({ ...message, kind });

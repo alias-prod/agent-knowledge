@@ -84,7 +84,13 @@ export async function POST(request: Request) {
     try {
       const result = await agent.stream({ prompt: body.question, abortSignal });
       let answer = "";
-      for await (const delta of result.textStream) { answer += delta; if (answer.length > 16000) throw new Error("Output limit"); emit({ type: "text", delta }); }
+      for await (const part of result.fullStream) {
+        if (part.type === "error") throw part.error;
+        if (part.type !== "text-delta") continue;
+        answer += part.text;
+        if (answer.length > 16000) throw new Error("Output limit");
+        emit({ type: "text", delta: part.text });
+      }
       abortSignal.throwIfAborted();
       // Reauthorize immediately before releasing links or persisting a completed answer.
       const current = await fetchAuthQuery(api.auth.getCurrentUser, {});
@@ -96,8 +102,8 @@ export async function POST(request: Request) {
       emit({ type: "complete", message, sources: [...sources.values()], discoveries });
     } catch (error) {
       await fetchAuthMutation(api.assistantOperations.finishRequest, { ...scope, failed: true }).catch(() => undefined);
-      const billingBlocked = error instanceof Error && error.message.includes("Free tier users do not have access");
-      emit({ type: "error", error: billingBlocked ? "AI Gateway requires paid credits for the reasoning model. Ask your team administrator to enable model access. Direct commands such as Open Documents, Find onboarding, and Show ontology graph still work. No changes were saved." : "The assistant could not complete this request. No changes were automatically saved. Retry, or use workspace search." });
+      const accessRejected = error instanceof Error && error.message.includes("Free tier users do not have access");
+      emit({ type: "error", error: accessRejected ? "AI Gateway rejected access to openai/gpt-6-luna for this request. Ask your team administrator to review the Gateway request details and credential entitlement. Direct commands such as Open Documents, Find onboarding, and Show ontology graph still work. No changes were automatically saved." : "The assistant could not complete this request. No changes were automatically saved. Retry, or use workspace search." });
     } finally { controller.close(); }
   } });
   return new Response(stream, { headers: { ...headers, "Content-Type": "application/x-ndjson; charset=utf-8", "X-Content-Type-Options": "nosniff" } });
