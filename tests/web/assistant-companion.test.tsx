@@ -28,6 +28,40 @@ describe("workspace assistant interaction", () => {
     fireEvent.click(screen.getByRole("button", { name: "Collapse Ask ALIAS" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
+  test("Open Documents preset completes with a real link despite having an OpenUI message", async () => {
+    const result = { kind: "navigation" as const, title: "Documents", href: "/documents", status: "pending-client" as const };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response([
+      JSON.stringify({ type: "text", delta: "Ready to open Documents. Select the link below." }),
+      JSON.stringify({ type: "complete", message: answerMessage("Ready to open Documents. Select the link below.", [result]), discoveries: [result], sources: [] }), "",
+    ].join("\n"))));
+    render(<AssistantCompanion />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Ask ALIAS companion" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Documents" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send Question" }));
+    const link = await screen.findByRole("link", { name: /Documents/ });
+    expect(link).toHaveAttribute("href", "/documents"); link.focus(); expect(link).toHaveFocus();
+    expect(await screen.findByText(/Assistant response complete/)).toBeInTheDocument();
+  });
+  test("completed search and authoritative source links render together", async () => {
+    const result = { kind: "discovery" as const, scope: "metadata-only" as const, hasMore: false, items: [{ kind: "document" as const, id: "record", title: "Discovered Record", href: "/documents?doc=record" }] };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ type: "complete", message: answerMessage("Found titles", [result]), discoveries: [result], sources: [{ id: "source", title: "Verified Source", href: "/documents?doc=source" }, { id: "unsafe", title: "Unsafe Source", href: "https://evil.test" }] }) + "\n")));
+    render(<AssistantCompanion />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Ask ALIAS companion" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Ask ALIAS" }), { target: { value: "Find titles" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send Question" }));
+    expect(await screen.findByRole("link", { name: /Discovered Record/ })).toHaveAttribute("href", "/documents?doc=record");
+    expect(screen.getByRole("link", { name: "[1] Verified Source" })).toHaveAttribute("href", "/documents?doc=source");
+    expect(screen.queryByRole("link", { name: /Unsafe Source/ })).not.toBeInTheDocument();
+  });
+  test("server rejection shows an accessible error without claiming navigation", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: "Workspace access denied." }, { status: 403 })));
+    render(<AssistantCompanion />);
+    fireEvent.click(screen.getByRole("button", { name: "Open Ask ALIAS companion" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Documents" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send Question" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Workspace access denied.");
+    expect(screen.queryByRole("link", { name: /Documents/ })).not.toBeInTheDocument();
+  });
   test("voice release failure never accesses a microphone", async () => {
     const microphone = vi.fn();
     Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia: microphone } });

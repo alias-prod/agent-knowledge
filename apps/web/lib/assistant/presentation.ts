@@ -5,7 +5,8 @@ import { NAV_COMMANDS, type AssistantReadResult } from "@agent-knowledge/shared"
 export const ASSISTANT_LIBRARY_VERSION = "alias-assistant-1";
 export const answerProps = z.object({ text: z.string().max(16000) });
 export const resultProps = z.object({ title: z.string().max(200), href: z.string().max(400), detail: z.string().max(300) });
-const define = <T extends z.ZodObject>(name: string, description: string, props: T) => defineComponent({ name, description, props, component: null });
+// OpenUI tags schemas by identity; sharing a schema lets the last component erase earlier catalog entries.
+const define = <T extends z.ZodObject>(name: string, description: string, props: T) => defineComponent({ name, description, props: props.clone(), component: null });
 export const answerComponent = define("AnswerWithSources", "Grounded response; citations are separate authoritative links.", answerProps);
 export const documentComponent = define("DocumentCard", "Validated workspace record or destination.", resultProps);
 export const searchComponent = define("SearchResults", "Metadata-only discovery results. Titles do not authorize using source contents.", z.object({ items: z.array(resultProps).max(10) }));
