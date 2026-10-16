@@ -12,6 +12,7 @@
     "packages/*"
   ],
   "devDependencies": {
+    "@better-auth/utils": "0.4.1",
     "@edge-runtime/vm": "^5.0.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^7.0.0",

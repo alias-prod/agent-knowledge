@@ -1,8 +1,14 @@
 import { describe, expect, test } from "vitest";
-import { ASSISTANT_COMMANDS, ASSISTANT_LIMITS, NAV_COMMANDS, parseAssistantCommand } from "@agent-knowledge/shared";
+import { ASSISTANT_COMMANDS, ASSISTANT_LIMITS, NAV_COMMANDS, parseAssistantCommand, assistantShortcut } from "@agent-knowledge/shared";
 import { NAV_COMMANDS as webCommands } from "../../apps/web/lib/nav";
 
 describe("assistant command boundary", () => {
+  test("executes explicit safe shortcuts without model inference", () => {
+    expect(assistantShortcut("Open Documents")).toEqual({ name: "navigate", args: { route: "/documents" } });
+    expect(assistantShortcut("Find onboarding")).toEqual({ name: "search", args: { query: "onboarding", entity: "all" } });
+    expect(assistantShortcut("Show ontology graph")).toMatchObject({ name: "graph.view", args: { lens: "ontology", view: "list" } });
+    for (const input of ["Delete everything", "Open https://evil.test", "Grant me owner", "Find " + "x".repeat(121)]) expect(assistantShortcut(input)).toBeNull();
+  });
   test("uses the application's canonical navigation allowlist", () => {
     expect(webCommands).toBe(NAV_COMMANDS);
     expect(ASSISTANT_COMMANDS.navigate.inputSchema.properties.route.enum).toEqual(NAV_COMMANDS.map(({ href }) => href));

@@ -10,6 +10,7 @@ import { BrandLockup } from "@/components/BrandLockup";
 import { Button } from "@/components/ui/button";
 import { NAV_GROUPS } from "@/lib/nav";
 import { CommandPalette } from "./components/CommandPalette";
+import { AssistantCompanion } from "@/components/assistant/AssistantCompanion";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -17,6 +18,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const initialize = useMutation(api.auth.initializeWorkspace);
   const [initialized, setInitialized] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [error, setError] = useState("");
   const pathname = usePathname();
   useEffect(() => {
@@ -46,6 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-svh bg-background text-foreground font-sans">
       <a href="#workspace-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:p-3 focus:text-primary-foreground">Skip to Content</a>
       <CommandPalette />
+      <AssistantCompanion key={workspace.organizationId} onOpenChange={setAssistantOpen} />
       <div className="flex min-h-svh flex-col md:flex-row">
         <aside className="flex shrink-0 flex-col gap-6 border-b border-border bg-card p-4 text-card-foreground md:sticky md:top-0 md:h-svh md:w-60 md:overflow-y-auto md:border-b-0 md:border-r md:p-5">
           <div className="flex items-center justify-between gap-4"><Link href="/" aria-label="ALIAS UCE home"><BrandLockup stacked /></Link><Button variant="outline" className="md:hidden" aria-expanded={menuOpen} aria-controls="workspace-menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? "Close Menu" : "Menu"}</Button></div>
@@ -55,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Button variant="outline" onClick={signOut}>Sign Out</Button>
           </div>
         </aside>
-        <main id="workspace-content" key={workspace.organizationId} className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8 lg:px-10">{children}</main>
+        <main id="workspace-content" key={workspace.organizationId} className={`min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8 lg:px-10 ${assistantOpen ? "xl:mr-[28rem]" : ""}`}>{children}</main>
       </div>
     </div>
   </WorkspaceAuthContext>;

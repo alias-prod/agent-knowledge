@@ -1,128 +1,18 @@
 "use client";
-
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { NAV_COMMANDS } from "@/lib/nav";
-
-const commands = NAV_COMMANDS;
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 export function CommandPalette() {
-  const router = useRouter();
-
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      const isCommandK =
-        (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k";
-
-      if (isCommandK) {
-        event.preventDefault();
-        setOpen((current) => !current);
-      }
-
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    const handle = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k" && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); setOpen(value => !value); } };
+    window.addEventListener("keydown", handle); return () => window.removeEventListener("keydown", handle);
   }, []);
-
-  const filteredCommands = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    if (!normalizedQuery) return commands;
-
-    return commands.filter((command) => {
-      return (
-        command.label.toLowerCase().includes(normalizedQuery) ||
-        command.description.toLowerCase().includes(normalizedQuery) ||
-        command.group.toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [query]);
-
-  function runCommand(href: string) {
-    setOpen(false);
-    setQuery("");
-    router.push(href);
-  }
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/75 px-4 py-20 backdrop-blur-sm">
-      <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-neutral-800 bg-[#0b0b0b] shadow-2xl shadow-black/50">
-        <div className="border-b border-neutral-800 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                Command palette
-              </p>
-              <p className="mt-1 text-sm text-neutral-400">
-                Search pages and workspace actions.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-lg px-2 py-1 text-sm text-neutral-500 transition hover:bg-neutral-900 hover:text-white"
-            >
-              Esc
-            </button>
-          </div>
-
-          <input
-            autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="ak-input mt-4 px-4 py-3"
-            placeholder="Search dashboard, ask, members, settings..."
-          />
-        </div>
-
-        <div className="max-h-105 overflow-y-auto p-2">
-          {filteredCommands.length === 0 ? (
-            <div className="rounded-xl p-6 text-center">
-              <p className="text-sm font-medium text-white">
-                No commands found.
-              </p>
-              <p className="mt-2 text-sm text-neutral-500">
-                Try searching for Ask, Knowledge, Members, or Settings.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {filteredCommands.map((command) => (
-                <button
-                  key={command.href}
-                  type="button"
-                  onClick={() => runCommand(command.href)}
-                  className="flex w-full items-start justify-between gap-4 rounded-xl border border-transparent px-4 py-3 text-left transition hover:border-neutral-800 hover:bg-white/[0.035]"
-                >
-                  <span>
-                    <span className="block text-sm font-medium text-white">
-                      {command.label}
-                    </span>
-                    <span className="mt-1 block text-sm text-neutral-500">
-                      {command.description}
-                    </span>
-                  </span>
-
-                  <span className="shrink-0 rounded-md border border-neutral-800 px-2 py-1 text-xs text-neutral-500">
-                    {command.group}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  const search = query.trim().toLowerCase();
+  const commands = NAV_COMMANDS.filter(command => `${command.label} ${command.description} ${command.group}`.toLowerCase().includes(search));
+  return <Dialog open={open} onOpenChange={setOpen}><DialogContent><DialogHeader><DialogTitle>Workspace Commands</DialogTitle><DialogDescription>Find a page or open your workspace companion.</DialogDescription></DialogHeader><label className="sr-only" htmlFor="command-search">Search Commands</label><Input id="command-search" value={query} onChange={event => setQuery(event.target.value)} autoComplete="off" placeholder="Search workspace pages…" /><div className="flex max-h-96 flex-col gap-2 overflow-y-auto"><Button variant="outline" onClick={() => { setOpen(false); window.dispatchEvent(new Event("alias:open-assistant")); }}>Ask ALIAS</Button>{commands.map(command => <Link key={command.href} href={command.href} onClick={() => { setOpen(false); setQuery(""); }} className="flex min-h-11 flex-col rounded-md px-3 py-3 text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-2 focus-visible:outline-ring"><span>{command.label}</span><span className="text-muted-foreground">{command.description}</span></Link>)}{!commands.length && <p className="text-sm text-muted-foreground">No matching pages. Try Documents, Graph, or Members.</p>}</div></DialogContent></Dialog>;
 }

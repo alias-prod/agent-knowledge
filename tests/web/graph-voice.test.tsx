@@ -91,6 +91,25 @@ describe("opt-in graph voice controls", () => {
     expect(Recognition.current.onresult).toBeNull();
   });
 
+  test("explicit stop ends recognition without executing a search", () => {
+    const search = vi.fn();
+    render(<GraphVoiceControls onSearch={search} />); openVoice();
+    fireEvent.click(screen.getByRole("button", { name: "Search by Voice" }));
+    fireEvent.click(screen.getByRole("button", { name: "Stop Listening" }));
+    expect(Recognition.current.abort).toHaveBeenCalledOnce();
+    expect(search).not.toHaveBeenCalled();
+  });
+  test("ignored permission or silent recognition times out and releases the session", () => {
+    vi.useFakeTimers();
+    try {
+      render(<GraphVoiceControls onSearch={vi.fn()} />); openVoice();
+      fireEvent.click(screen.getByRole("button", { name: "Search by Voice" }));
+      act(() => vi.advanceTimersByTime(15000));
+      expect(Recognition.current.abort).toHaveBeenCalledOnce();
+      expect(screen.getByRole("status")).toHaveTextContent("timed out");
+      expect(screen.getByRole("button", { name: "Search by Voice" })).toHaveAttribute("aria-pressed", "false");
+    } finally { vi.useRealTimers(); }
+  });
   test("keeps typed search available when voice is unsupported", () => {
     vi.stubGlobal("SpeechRecognition", undefined);
     vi.stubGlobal("webkitSpeechRecognition", undefined);

@@ -12,7 +12,8 @@ export type WorkspaceAuth = {
 };
 export const WorkspaceAuthContext = createContext<WorkspaceAuth | null>(null);
 export function useCurrentOrganization() { return useAuth().organizationId; }
-export function useAuth(_options?: { ensureSignedIn?: boolean }) {
+export function useAuth(options?: { ensureSignedIn?: boolean }) {
+  void options;
   const auth = useContext(WorkspaceAuthContext);
   if (!auth) throw new Error("Workspace authentication is not ready");
   return auth;

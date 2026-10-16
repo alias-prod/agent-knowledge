@@ -20,7 +20,9 @@ const snapshot: GraphSnapshot = {
 describe("company brain graph adapter", () => {
   test("exposes the actual ontology without inventing workspace records", () => {
     const graph = buildGraphModel();
-    expect(graph.lenses.ontology.children).toHaveLength(8);
+    expect([...graph.index.values()].filter(entry => entry.lens === "ontology" && entry.node.kind === "type")).toHaveLength(ONTOLOGY_ENTITIES.length);
+    expect(graph.index.get("type:authOrganizationMappings")?.node.description).toContain("one-to-one");
+    expect(graph.index.get("type:memberships")?.node.description).toContain("Read-only legacy membership evidence");
     expect(graph.lenses.knowledge.children).toEqual([]);
     expect(graph.edges.every((edge) => edge.source.startsWith("type:"))).toBe(true);
     expect(graph.index.get("type:knowledge:field:allowedAgentIds")?.node.description).toContain("empty list does not grant access");

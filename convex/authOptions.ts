@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from "better-auth/minimal";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { organization } from "better-auth/plugins";
+import { organization, twoFactor } from "better-auth/plugins";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { getAuthConfigProvider } from "@convex-dev/better-auth/auth-config";
 import { getAuthEnvironment } from "./authEnvironment";
@@ -22,6 +22,11 @@ export function createAuthOptions(
   const configuration = getAuthEnvironment(process.env);
   return {
     ...configuration,
+    advanced: {
+      ...configuration.advanced,
+      // Organization invitations otherwise generate a non-Convex _id before insertion.
+      database: { generateId: false },
+    },
     database,
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
@@ -58,7 +63,9 @@ export function createAuthOptions(
         "/request-password-reset": { window: 60, max: 3 },
       },
     },
+    appName: "ALIAS UCE",
     plugins: [
+      twoFactor({ issuer: "ALIAS UCE" }),
       organization({
         allowUserToCreateOrganization: async (user) => user.emailVerified === true,
         creatorRole: "owner",

@@ -1,4 +1,6 @@
 {
+  "include": ["index.ts", "packages/**/*.ts", "convex/**/*.ts"],
+  "exclude": ["node_modules"],
   "compilerOptions": {
     // Environment setup & latest features
     "lib": ["ESNext"],

@@ -16,7 +16,7 @@ export type { KnowledgeType, RelationshipKind } from "./documents";
 
 export { NAV_GROUPS, NAV_COMMANDS } from "./navigation";
 export type { NavLink, NavGroup } from "./navigation";
-export { ASSISTANT_COMMANDS, ASSISTANT_LIMITS, parseAssistantCommand } from "./assistant";
+export { ASSISTANT_COMMANDS, ASSISTANT_LIMITS, parseAssistantCommand, assistantShortcut } from "./assistant";
 export type { AssistantCommand, AssistantDiscoveryItem, AssistantReadResult } from "./assistant";
 
 export { GRAPH_LIMITS } from "./graph";

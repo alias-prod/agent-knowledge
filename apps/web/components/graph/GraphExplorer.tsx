@@ -116,6 +116,7 @@ export function GraphExplorer({ snapshot }: { snapshot?: GraphSnapshot }) {
         </div>
         <p id="graph-result-summary" className="text-sm leading-6 tabular-nums text-muted-foreground" role="status" aria-atomic="true">{query !== deferredQuery ? "Updating results…" : `${summary.entities} unique ${summary.entities === 1 ? "entity" : "entities"} · ${summary.attributes} ${summary.attributes === 1 ? "attribute" : "attributes"} · ${summary.relationships} ${summary.relationships === 1 ? "relationship" : "relationships"} between visible entities`}</p>
         <GraphVoiceControls key={`${lens}:${selectedNode?.id ?? "none"}`} onSearch={updateSearch} readout={readout} />
+        {live && <Button variant="outline" onClick={() => window.dispatchEvent(new Event("alias:open-assistant"))}>Ask ALIAS About This Workspace</Button>}
       </div>
 
       <section className="graph-stage-panel" aria-labelledby="graph-view-title">

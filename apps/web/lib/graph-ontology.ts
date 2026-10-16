@@ -96,9 +96,10 @@ export const ONTOLOGY_ENTITIES = [
   {
     table: "users",
     title: "People",
-    description: "User identities associated with workspace memberships.",
+    description: "Stable application profiles linked to verified Better Auth identities. Profiles alone do not grant workspace access.",
     fields: [
-      { name: "workosUserId", description: "The external WorkOS identity, when linked." },
+      { name: "betterAuthUserId", description: "The authoritative Better Auth identity linked by a unique indexed mapping; never automatically matched by email." },
+      { name: "workosUserId", description: "Preserved legacy WorkOS identity for migration evidence, not an accepted session authority." },
       { name: "name", description: "The person's optional display name." },
       { name: "email", description: "The person's email address." },
       { name: "createdAt", description: "When this identity was recorded." },
@@ -108,16 +109,41 @@ export const ONTOLOGY_ENTITIES = [
   {
     table: "memberships",
     title: "Memberships",
-    description: "The access boundary between people and workspaces.",
+    description: "Read-only legacy membership evidence for reviewed migration and rollback. Live access is authorized by current Better Auth component membership and session.",
     fields: [
       { name: "userId", description: "The member's stored user ID." },
-      { name: "organizationId", description: "The workspace this membership grants access to." },
-      { name: "role", description: "Owner, admin, or member. The backend checks membership before returning graph data." },
+      { name: "organizationId", description: "The stable workspace identifier recorded in the legacy membership." },
+      { name: "role", description: "The legacy owner/admin/member role, retained as reconciliation evidence. This is not a writable live authorization source." },
     ],
     relations: [
       { target: "users", label: "belongs to", field: "userId", description: "A stored user ID links the membership to a person." },
-      { target: "organizationSettings", label: "grants access to", field: "organizationId", description: "The organization identifier defines the workspace access boundary." },
+      { target: "organizationSettings", label: "legacy workspace", field: "organizationId", description: "Preserved migration evidence only. Current Better Auth memberships are authoritative." },
     ],
+  },
+  {
+    table: "authOrganizationMappings",
+    title: "Workspace Identity Mappings",
+    description: "Server-owned one-to-one links from Better Auth organizations to stable workspace identifiers. Every protected data operation rechecks a live session and membership through this mapping.",
+    fields: [
+      { name: "betterAuthOrganizationId", description: "The authoritative organization ID in the Better Auth component." },
+      { name: "organizationId", description: "The preserved business workspace ID used by documents, agents, and audit records." },
+      { name: "source", description: "Created by a verified workspace owner, or imported with explicit reviewed migration evidence." },
+    ],
+    relations: [{ target: "organizationSettings", label: "maps workspace", field: "organizationId", description: "The stable workspace identifier preserves business records through an identity-provider migration." }],
+  },
+  {
+    table: "assistantOperations",
+    title: "Assistant Operations",
+    description: "Single-use server-owned draft proposals. Only the originating verified actor and session can approve; cancellation, expiry, role changes and revision conflicts deny commits.",
+    fields: [
+      { name: "organizationId", description: "The authorized workspace for this operation." },
+      { name: "actorId", description: "The verified Better Auth user, derived on the server." },
+      { name: "sessionId", description: "The originating live session. Other sessions cannot replay an approval." },
+      { name: "status", description: "Proposed, committed, or cancelled. A model cannot self-approve." },
+      { name: "targetId", description: "Optional target document for a revision-checked edit; absent for a new draft." },
+      { name: "expiresAt", description: "Approval expires five minutes after its originating request began." },
+    ],
+    relations: [{ target: "knowledge", label: "proposes change to", field: "targetId", description: "An explicit document ID binds an edit proposal to its exact target." }],
   },
   {
     table: "organizationSettings",

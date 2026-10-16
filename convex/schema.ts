@@ -2,6 +2,25 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  assistantRequests: defineTable({
+    organizationId: v.string(), actorId: v.string(), sessionId: v.string(), requestId: v.string(),
+    status: v.union(v.literal("running"), v.literal("complete"), v.literal("cancelled"), v.literal("failed")),
+    createdAt: v.number(), expiresAt: v.number(), historyEnabled: v.boolean(),
+    inputTokens: v.optional(v.number()), outputTokens: v.optional(v.number()),
+    model: v.string(), libraryVersion: v.string(),
+  }).index("by_actor_request", ["actorId", "requestId"]).index("by_actor_created", ["actorId", "createdAt"]).index("by_expiry", ["expiresAt"]),
+  assistantMessages: defineTable({
+    organizationId: v.string(), actorId: v.string(), requestId: v.string(),
+    question: v.string(), message: v.string(), createdAt: v.number(), expiresAt: v.number(),
+  }).index("by_actor_workspace", ["actorId", "organizationId"]).index("by_expiry", ["expiresAt"]),
+  assistantOperations: defineTable({
+    organizationId: v.string(), actorId: v.string(), sessionId: v.string(), requestId: v.string(),
+    kind: v.union(v.literal("create"), v.literal("edit")), title: v.string(), content: v.string(),
+    targetId: v.optional(v.id("knowledge")), expectedUpdatedAt: v.optional(v.number()),
+    beforeTitle: v.optional(v.string()), beforeContent: v.optional(v.string()),
+    status: v.union(v.literal("proposed"), v.literal("committed"), v.literal("cancelled")),
+    resultId: v.optional(v.id("knowledge")), createdAt: v.number(), expiresAt: v.number(),
+  }).index("by_actor_request", ["actorId", "requestId"]).index("by_expiry", ["expiresAt"]),
   knowledge: defineTable({
     title: v.string(),
     content: v.string(),

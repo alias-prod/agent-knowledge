@@ -30,6 +30,7 @@ function voiceSupport() {
 export function GraphVoiceControls({ onSearch, readout }: { onSearch: (query: string) => void; readout?: string }) {
   const support = useSyncExternalStore(subscribe, voiceSupport, () => 0);
   const recognition = useRef<Recognition | null>(null);
+  const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
   const utterance = useRef<SpeechSynthesisUtterance | null>(null);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -37,6 +38,7 @@ export function GraphVoiceControls({ onSearch, readout }: { onSearch: (query: st
 
   useEffect(() => {
     function stop() {
+      if (watchdog.current) clearTimeout(watchdog.current);
       if (recognition.current) {
         recognition.current.onresult = null;
         recognition.current.onerror = null;
@@ -93,6 +95,7 @@ export function GraphVoiceControls({ onSearch, readout }: { onSearch: (query: st
     session.onend = () => {
       if (recognition.current !== session) return;
       recognition.current = null;
+      if (watchdog.current) clearTimeout(watchdog.current);
       setListening(false);
       setMessage((current) => current.startsWith("Listening") ? "No speech received. Try again or type your search." : current);
     };
@@ -100,6 +103,12 @@ export function GraphVoiceControls({ onSearch, readout }: { onSearch: (query: st
       session.start();
       setListening(true);
       setMessage("Listening… Say the words you want to search for.");
+      watchdog.current = setTimeout(() => {
+        if (recognition.current !== session) return;
+        session.abort();
+        setListening(false);
+        setMessage("Voice search timed out. Check microphone permission, or type your search instead.");
+      }, 15_000);
     } catch {
       recognition.current = null;
       setMessage("Voice search could not start. Use the text search instead.");

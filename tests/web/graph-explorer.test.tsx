@@ -84,7 +84,7 @@ describe("graph explorer controls", () => {
 
   test("shows truthful scope and omits synthetic nodes from browsing", () => {
     render(<GraphExplorer />);
-    expect(screen.getByText(/8 unique entities · 49 attributes · 12 relationships/)).toBeInTheDocument();
+    expect(screen.getByText(/10 unique entities · 59 attributes · 14 relationships/)).toBeInTheDocument();
     expect(within(screen.getByRole("list", { name: "Graph nodes" })).queryByRole("button", { name: /Items 1/ })).not.toBeInTheDocument();
   });
 

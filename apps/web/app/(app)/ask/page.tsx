@@ -136,13 +136,7 @@ export default function AskPage() {
                 },
                 body: JSON.stringify({
                     question,
-                    agentName: selectedAgent?.name,
-                    sources: results.map((item) => ({
-                        title: item.title,
-                        category: item.category,
-                        content: item.content,
-                        sourceUrl: item.sourceUrl,
-                    })),
+                    agentId: selectedAgentId,
                 }),
             });
 
@@ -170,7 +164,7 @@ export default function AskPage() {
                 message.includes("RESOURCE_EXHAUSTED") ||
                     message.includes("Quota exceeded") ||
                     message.toLowerCase().includes("quota")
-                    ? "AI generation is optional and currently unavailable for this Gemini API key/project. You can still use the source-grounded draft answer above."
+                    ? "AI generation is currently unavailable. You can still read the verified sources or use the source-grounded draft answer above."
                     : message;
 
             setAiError(cleanMessage);

@@ -28,6 +28,10 @@ export function AuthForm({ mode, token, notice, next = "/workspaces" }: { mode: 
       if (mode === "login") {
         const result = await authClient.signIn.email({ email, password });
         if (result.error) throw new Error("Sign-in failed. Check your credentials and verify your email, then try again.");
+        if (result.data && "twoFactorRedirect" in result.data && result.data.twoFactorRedirect) {
+          window.location.assign("/two-factor");
+          return;
+        }
         window.location.assign(next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : "/workspaces");
       } else if (mode === "signup") {
         const result = await authClient.signUp.email({ email, password, name: String(values.get("name") ?? "").trim(), callbackURL });
