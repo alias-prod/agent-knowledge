@@ -1,7 +1,21 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env*"],
-  "globalEnv": ["NEXT_PUBLIC_CONVEX_URL"],
+  "globalEnv": [
+    "NEXT_PUBLIC_CONVEX_URL",
+    "NEXT_PUBLIC_CONVEX_SITE_URL",
+    "CONVEX_URL",
+    "CONVEX_SITE_URL",
+    "BETTER_AUTH_URL",
+    "VERCEL_URL",
+    "VERCEL_PROJECT_PRODUCTION_URL"
+  ],
+  "globalPassThroughEnv": [
+    "CONVEX_DEPLOY_KEY",
+    "BETTER_AUTH_SECRET",
+    "RESEND_API_KEY",
+    "RESEND_EMAIL_DOMAIN"
+  ],
   "tasks": {
     "dev": {
       "cache": false,

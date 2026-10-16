@@ -83,8 +83,41 @@ describe("workspace environment configuration", () => {
     expect(mocks.loadEnvFile).not.toHaveBeenCalled();
   });
 
-  test("includes the deployment URL and root env files in Turbo task inputs", () => {
-    expect(turboConfig.globalEnv).toContain("NEXT_PUBLIC_CONVEX_URL");
+  test("includes endpoint and origin configuration in Turbo task inputs", () => {
+    expect(turboConfig.globalEnv).toEqual(expect.arrayContaining([
+      "NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_CONVEX_SITE_URL",
+      "CONVEX_URL", "CONVEX_SITE_URL", "BETTER_AUTH_URL",
+      "VERCEL_URL", "VERCEL_PROJECT_PRODUCTION_URL",
+    ]));
     expect(turboConfig.globalDependencies).toContain(".env*");
+  });
+
+  test("passes server credentials through strict Turbo without exposing them through Next config", async () => {
+    const serverVariables = ["CONVEX_DEPLOY_KEY", "BETTER_AUTH_SECRET", "RESEND_API_KEY", "RESEND_EMAIL_DOMAIN"];
+    for (const name of serverVariables) vi.stubEnv(name, "test-only-server-value");
+    mocks.existsSync.mockReturnValue(false);
+    const { default: config } = await import("../../apps/web/next.config");
+
+    expect(turboConfig.globalPassThroughEnv).toEqual(expect.arrayContaining(serverVariables));
+    for (const name of serverVariables) {
+      expect(config.env).not.toHaveProperty(name);
+      expect(config.env).not.toHaveProperty(`NEXT_PUBLIC_${name}`);
+      expect(turboConfig.globalEnv).not.toContain(name);
+    }
+  });
+
+  test("uses explicit server endpoints without requiring local env files", async () => {
+    vi.stubEnv("CONVEX_URL", "https://test-deployment.convex.cloud");
+    vi.stubEnv("CONVEX_SITE_URL", "https://test-deployment.convex.site");
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_URL", undefined);
+    vi.stubEnv("NEXT_PUBLIC_CONVEX_SITE_URL", undefined);
+    mocks.existsSync.mockReturnValue(false);
+    const { default: config } = await import("../../apps/web/next.config");
+
+    expect(config.env).toEqual({
+      NEXT_PUBLIC_CONVEX_URL: "https://test-deployment.convex.cloud",
+      NEXT_PUBLIC_CONVEX_SITE_URL: "https://test-deployment.convex.site",
+    });
+    expect(mocks.loadEnvFile).not.toHaveBeenCalled();
   });
 });
