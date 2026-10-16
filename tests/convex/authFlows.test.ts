@@ -4,6 +4,7 @@ import { createOTP } from "@better-auth/utils/otp";
 import { base32 } from "@better-auth/utils/base32";
 import { authComponent } from "../../convex/auth";
 import { createAuthOptions, type AuthMail } from "../../convex/authOptions";
+import { getAuthEnvironment } from "../../convex/authEnvironment";
 import { createAuthTest } from "./authFixture";
 import { components } from "../../convex/_generated/api";
 
@@ -47,6 +48,36 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe("real Better Auth HTTP lifecycle with an isolated delivery sink", () => {
+  test("dev Preview origins pass real origin middleware while unrelated hosts and redirect URLs fail", async () => {
+    const h = harness();
+    const deployed = "https://alias-kr-ontology-lv4tpvgkr-prod-4689s-projects.vercel.app";
+    const branch = "https://alias-kr-ontology-git-v0-fix-convex-8e7c1e-prod-4689s-projects.vercel.app";
+    const environment = getAuthEnvironment({ NODE_ENV: "development", BETTER_AUTH_URL: branch,
+      AUTH_PREVIEW_ORIGINS: JSON.stringify([deployed, branch]) });
+    let probeNumber = 1;
+    for (const [requestOrigin, callbackURL, expectedStatus] of [
+      [deployed, `${deployed}/login`, 400],
+      [branch, `${branch}/login`, 400],
+      ["https://other-app.vercel.app", `${branch}/login`, 403],
+      [`${deployed}.attacker.test`, `${branch}/login`, 403],
+      [deployed, "https://other-app.vercel.app/login", 403],
+    ] as const) {
+      const status = await h.t.action(async ctx => {
+        const options = createAuthOptions(authComponent.adapter(ctx), async () => undefined);
+        const auth = betterAuth({ ...options, ...environment, advanced: { ...options.advanced,
+          ...environment.advanced, disableOriginCheck: false, disableCSRFCheck: false } });
+        const response = await auth.handler(new Request(`${branch}/api/auth/sign-up/email`, {
+          method: "POST", headers: { origin: requestOrigin, "content-type": "application/json",
+            "sec-fetch-site": "same-origin", cookie: "origin_probe=1", "x-forwarded-for": `192.0.2.${probeNumber++}` },
+          body: JSON.stringify({ name: "Origin regression", email: "origin-check@example.test", password: "short", callbackURL }),
+        }));
+        return response.status;
+      });
+      // Schema-valid input reaches origin middleware; the short password prevents account creation.
+      expect(status, `${requestOrigin} with callback ${callbackURL}`).toBe(expectedStatus);
+    }
+    expect(h.mailbox).toHaveLength(0);
+  });
   test("signup requires verification; sign-in persists session; sign-out revokes it", async () => {
     const h = harness();
     const signup = await h.call("/sign-up/email", { email: "lifecycle@example.test", name: "Lifecycle Test", password: "test-only-password-123", callbackURL: "https://auth.example.test/login" });

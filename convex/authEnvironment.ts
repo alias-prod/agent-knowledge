@@ -9,6 +9,22 @@ function origin(value?: string, hostname = false) {
   return url.origin;
 }
 
+function previewOrigins(value?: string): string[] {
+  if (!value?.trim()) return [];
+  const values: unknown = JSON.parse(value);
+  if (!Array.isArray(values) || values.length > 20) {
+    throw new Error("Authentication preview origins must be an array of exact HTTPS origins");
+  }
+  return values.map((value: unknown) => {
+    if (typeof value !== "string") throw new Error("Invalid authentication preview origin");
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:" || parsed.origin !== value || origin(value) !== value) {
+      throw new Error("Authentication preview origins must be exact HTTPS origins");
+    }
+    return value;
+  });
+}
+
 export function getAuthEnvironment(env: Environment) {
   const development = env.NODE_ENV === "development";
   const baseURL = origin(env.BETTER_AUTH_URL)
@@ -21,7 +37,9 @@ export function getAuthEnvironment(env: Environment) {
         env.V0_DEV_APP_URL,
         env.V0_BUILD_URL,
         env.V0_SANDBOX_URL,
-      ].map((url) => origin(url))]
+      ].map((url) => origin(url)),
+      origin(env.VERCEL_URL, true),
+      ...previewOrigins(env.AUTH_PREVIEW_ORIGINS)]
     : [origin(env.VERCEL_URL, true), origin(env.VERCEL_PROJECT_PRODUCTION_URL, true)];
 
   return {
