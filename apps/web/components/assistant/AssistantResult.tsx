@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import { Renderer, createLibrary, defineComponent } from "@openuidev/react-lang";
 import { parseMessage } from "@openuidev/lang-core";
-import { z } from "zod";
 import { api } from "../../../../convex/_generated/api";
 import { useAuth } from "@/lib/auth-context";
 import { presentationComponents, safeAssistantHref, ASSISTANT_LIBRARY_VERSION } from "@/lib/assistant/presentation";
