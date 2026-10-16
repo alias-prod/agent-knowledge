@@ -4,7 +4,7 @@ import { ASSISTANT_COMMANDS, parseAssistantCommand, assistantShortcut, documentH
 import type { AssistantReadResult } from "@agent-knowledge/shared";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 import { api } from "../../../../../convex/_generated/api";
-import { getAuthEnvironment } from "../../../../../convex/authEnvironment";
+import { isTrustedRequestOrigin } from "@/lib/trusted-request-origin";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth-server";
 import { answerMessage, specification } from "@/lib/assistant/presentation";
 
@@ -12,8 +12,7 @@ export const maxDuration = 60;
 const requestSchema = z.object({ requestId: z.string().uuid(), question: z.string().trim().min(1).max(2000), agentId: z.string().max(64).optional(), historyEnabled: z.boolean().default(false) }).strict();
 export async function POST(request: Request) {
   const headers = { "Cache-Control": "no-store" };
-  const origin = request.headers.get("origin");
-  if (!origin || !getAuthEnvironment(process.env).trustedOrigins.includes(origin)) return Response.json({ error: "Request origin is not allowed" }, { status: 403, headers });
+  if (!isTrustedRequestOrigin(request)) return Response.json({ error: "Request origin is not allowed" }, { status: 403, headers });
   if (Number(request.headers.get("content-length")) > 10_000) return Response.json({ error: "Request is too large" }, { status: 413, headers });
   let body: z.infer<typeof requestSchema>;
   try { const text = await request.text(); if (text.length > 10_000) throw new Error(); body = requestSchema.parse(JSON.parse(text)); }

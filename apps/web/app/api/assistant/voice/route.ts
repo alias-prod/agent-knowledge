@@ -1,5 +1,5 @@
 import { api } from "../../../../../../convex/_generated/api";
-import { getAuthEnvironment } from "../../../../../../convex/authEnvironment";
+import { isTrustedRequestOrigin } from "@/lib/trusted-request-origin";
 import { fetchAuthQuery } from "@/lib/auth-server";
 import { LIVE_MODEL } from "@/lib/assistant/live-session";
 
@@ -24,8 +24,7 @@ async function availability() {
 }
 export async function GET() { return availability(); }
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin || !getAuthEnvironment(process.env).trustedOrigins.includes(origin)) return Response.json({ error: "Request origin is not allowed" }, { status: 403, headers });
+  if (!isTrustedRequestOrigin(request)) return Response.json({ error: "Request origin is not allowed" }, { status: 403, headers });
   const response = await availability();
   if (response.status !== 200) return response;
   return Response.json(await response.json(), { status: 503, headers });

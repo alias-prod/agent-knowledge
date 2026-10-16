@@ -2,14 +2,13 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { api } from "../../../../../../convex/_generated/api";
 import type { Id } from "../../../../../../convex/_generated/dataModel";
-import { getAuthEnvironment } from "../../../../../../convex/authEnvironment";
+import { isTrustedRequestOrigin } from "@/lib/trusted-request-origin";
 import { fetchAuthQuery, fetchAuthMutation } from "@/lib/auth-server";
 
 const input = z.object({ question: z.string().trim().min(1).max(2000), agentId: z.string().min(1).max(64) }).strict();
 export async function POST(request: Request) {
   const headers = { "Cache-Control": "no-store" };
-  const origin = request.headers.get("origin");
-  if (!origin || !getAuthEnvironment(process.env).trustedOrigins.includes(origin)) return Response.json({ error: "Request origin is not allowed." }, { status: 403, headers });
+  if (!isTrustedRequestOrigin(request)) return Response.json({ error: "Request origin is not allowed." }, { status: 403, headers });
   let account;
   try { account = await fetchAuthQuery(api.auth.getCurrentUser, {}); } catch { return Response.json({ error: "Unauthorized" }, { status: 401, headers }); }
   if (!account?.workspace || !account.user.emailVerified) return Response.json({ error: "Unauthorized" }, { status: 401, headers });

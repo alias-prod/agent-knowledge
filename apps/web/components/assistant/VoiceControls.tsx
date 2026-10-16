@@ -18,7 +18,15 @@ export function VoiceControls({ workspace, active }: { workspace: string; active
       session.current?.dispose();
       session.current = null;
     }
-    const interrupt = () => { stop(); setChecking(false); setStatus({ state: "closed", message: "Voice stopped because the page was hidden. Final provider usage may be unconfirmed." }); };
+    const interrupt = () => {
+      const hadSession = session.current !== null;
+      if (!hadSession && !request.current) return;
+      stop();
+      setChecking(false);
+      setStatus({ state: "closed", message: hadSession
+        ? "Voice stopped because the page was hidden. Final provider usage may be unconfirmed."
+        : "Voice startup canceled because the page was hidden. No voice session started." });
+    };
     const hide = () => { if (document.visibilityState === "hidden") interrupt(); };
     window.addEventListener("pagehide", interrupt);
     document.addEventListener("visibilitychange", hide);
@@ -50,7 +58,10 @@ export function VoiceControls({ workspace, active }: { workspace: string; active
       if (!tokenResponse.ok) throw new Error();
       if (!audio) throw new Error();
       const live = new NativeLiveSession(audio, update => {
-        if (attempt === generation.current) setStatus(update);
+        if (attempt === generation.current) {
+          if (update.state === "closed") session.current = null;
+          setStatus(update);
+        }
       });
       session.current = live;
       live.start(credential);
