@@ -42,7 +42,8 @@
     "three": "^0.185.1",
     "y-codemirror.next": "^0.3.6",
     "yjs": "^13.6.33",
-    "zod": "4.4.3"
+    "zod": "4.4.3",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

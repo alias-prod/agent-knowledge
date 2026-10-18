@@ -201,7 +201,8 @@ describe("real Better Auth HTTP lifecycle with an isolated delivery sink", () =>
     await h.call("/sign-out", {});
     await h.signup("revoked@example.test");
     expect((await h.call("/organization/accept-invitation", { invitationId: revoked.data.id })).status).toBe(400);
-  });
+  // Four real password-hashing signup flows can exceed Vitest's 5s default on shared runners.
+  }, 15_000);
   test("revoking other sessions denies a previously valid cookie", async () => {
     const h = harness(); await h.signup("sessions@example.test");
     const original = new Map(h.cookies);

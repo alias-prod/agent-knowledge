@@ -86,7 +86,8 @@ describe("workspace environment configuration", () => {
 
   test("packages the web workspace as Next.js instead of a generic root deployment", () => {
     expect(vercelConfig.framework).toBe("nextjs");
-    expect(vercelConfig.buildCommand).toBe("bun run build");
+    expect(vercelConfig.installCommand).toBe("bunx bun@1.4.3 install --frozen-lockfile --ignore-scripts");
+    expect(vercelConfig.buildCommand).toBe("bunx bun@1.4.3 run build");
     expect(vercelConfig.outputDirectory).toBe("apps/web/.next");
   });
 
