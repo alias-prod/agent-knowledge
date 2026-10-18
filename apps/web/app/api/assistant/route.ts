@@ -7,6 +7,7 @@ import { api } from "../../../../../convex/_generated/api";
 import { isTrustedRequestOrigin } from "@/lib/trusted-request-origin";
 import { fetchAuthMutation, fetchAuthQuery } from "@/lib/auth-server";
 import { answerMessage, specification } from "@/lib/assistant/presentation";
+import { logInferenceError } from "@/lib/assistant/inference-error";
 
 export const maxDuration = 60;
 const requestSchema = z.object({ requestId: z.string().uuid(), question: z.string().trim().min(1).max(2000), agentId: z.string().max(64).optional(), historyEnabled: z.boolean().default(false) }).strict();
@@ -101,8 +102,8 @@ export async function POST(request: Request) {
       emit({ type: "complete", message, sources: [...sources.values()], discoveries });
     } catch (error) {
       await fetchAuthMutation(api.assistantOperations.finishRequest, { ...scope, failed: true }).catch(() => undefined);
-      const accessRejected = error instanceof Error && error.message.includes("Free tier users do not have access");
-      emit({ type: "error", error: accessRejected ? "AI Gateway rejected access to openai/gpt-6-luna for this request. Ask your team administrator to review the Gateway request details and credential entitlement. Direct commands such as Open Documents, Find onboarding, and Show ontology graph still work. No changes were automatically saved." : "The assistant could not complete this request. No changes were automatically saved. Retry, or use workspace search." });
+      const inferenceError = logInferenceError(error, { route: "assistant" });
+      emit({ type: "error", error: inferenceError.message, code: inferenceError.code });
     } finally { controller.close(); }
   } });
   return new Response(stream, { headers: { ...headers, "Content-Type": "application/x-ndjson; charset=utf-8", "X-Content-Type-Options": "nosniff" } });

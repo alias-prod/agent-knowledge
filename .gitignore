@@ -36,3 +36,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .turbo/
 turbo/
 apps/web/.turbo/
+
+# Playwright signed-in acceptance state: may contain active session cookies.
+playwright/.auth/
+playwright-report/
+test-results/

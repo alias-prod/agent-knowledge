@@ -94,7 +94,8 @@ describe("workspace environment configuration", () => {
     expect(turboConfig.globalEnv).toEqual(expect.arrayContaining([
       "NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_CONVEX_SITE_URL",
       "CONVEX_URL", "CONVEX_SITE_URL", "BETTER_AUTH_URL",
-      "VERCEL_URL", "VERCEL_PROJECT_PRODUCTION_URL",
+      "VERCEL_URL", "VERCEL_PROJECT_PRODUCTION_URL", "VERCEL_ENV", "VERCEL_TARGET_ENV",
+      "VERCEL_BRANCH_URL", "AUTH_PREVIEW_ORIGINS", "V0_RUNTIME_URL", "V0_DEV_APP_URL", "V0_BUILD_URL", "V0_SANDBOX_URL",
     ]));
     expect(turboConfig.globalDependencies).toContain(".env*");
   });
@@ -127,4 +128,14 @@ describe("workspace environment configuration", () => {
     });
     expect(mocks.loadEnvFile).not.toHaveBeenCalled();
   });
+});
+
+test.each(["production", "preview"])("restricts framing for %s without widening other origins", async environment => {
+  vi.stubEnv("NODE_ENV", "production"); vi.stubEnv("VERCEL_ENV", environment);
+  mocks.existsSync.mockReturnValue(false);
+  const { default: config } = await import("../../apps/web/next.config");
+  const entries = await config.headers!();
+  const policy = entries[0].headers.find(header => header.key === "Content-Security-Policy")!.value;
+  expect(policy).toBe(environment === "preview" ? "frame-ancestors 'self' https://v0.app https://v0.dev" : "frame-ancestors 'self'");
+  expect(policy).not.toContain("*");
 });

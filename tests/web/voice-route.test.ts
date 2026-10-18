@@ -20,7 +20,7 @@ test("other Live models cannot satisfy the exact-model gate", async () => {
   expect(response.headers.get("cache-control")).toBe("no-store");
 });
 test("catalog listing alone does not mint tokens or enable microphone access", async () => {
-  const fetcher = vi.fn().mockResolvedValue(Response.json({ data: [{ id: "openai/gpt-live-1.1" }] })); vi.stubGlobal("fetch", fetcher);
+  const fetcher = vi.fn().mockResolvedValue(Response.json({ data: [{ id: "openai/gpt-live-1.1", pricing: { realtime_session_duration_cost_per_second: "0.01" } }] })); vi.stubGlobal("fetch", fetcher);
   const response = await POST(new Request("https://app.example.test/api/assistant/voice", { method: "POST", headers: { origin: "https://app.example.test" } }));
   expect(response.status).toBe(503);
   expect(await response.json()).toMatchObject({ available: false, gate: "native-live-credentials" });
@@ -34,4 +34,12 @@ test("invalid or failed catalog responses fail closed", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ invalid: true })));
   const response = await GET(); expect(response.status).toBe(503);
   expect(await response.json()).toMatchObject({ available: false, gate: "availability-check-failed" });
+});
+
+test.each([undefined, null, "", " ", "NaN", "Infinity", -1, {}, true])("missing or invalid duration pricing stays blocked: %s", async price => {
+  const fetcher = vi.fn().mockResolvedValue(Response.json({ data: [null, {}, { id: "openai/gpt-live-1.1", pricing: { realtime_session_duration_cost_per_second: price } }] }));
+  vi.stubGlobal("fetch", fetcher);
+  const response = await GET();
+  expect(await response.json()).toMatchObject({ available: false, gate: "duration-pricing-unavailable" });
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });
