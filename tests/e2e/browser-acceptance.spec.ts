@@ -3,6 +3,9 @@ import { expect, test, type Page } from "@playwright/test";
 const workspaceName = required("E2E_EXPECTED_WORKSPACE");
 const acceptanceDraftTitle = required("E2E_ACCEPTANCE_DRAFT_TITLE");
 
+// Up to two paced commands plus navigation per case, without relaxing UI expectations.
+test.setTimeout(90_000);
+
 function required(name: string) {
   const value = process.env[name]?.trim();
   if (!value) throw new Error(`Missing ${name}. Browser acceptance must fail closed; see docs/browser-acceptance.md.`);
@@ -47,6 +50,10 @@ async function openAssistant(page: Page) {
 async function sendReadCommand(page: Page, command: string) {
   const question = await openAssistant(page);
   await question.fill(command);
+  // All projects share one actor and run with workers: 1. Waiting before EVERY
+  // command preserves >10s spacing even across project/worker boundaries,
+  // respecting beginRequest's six-requests-per-60s limit without bypassing it.
+  await new Promise(resolve => setTimeout(resolve, 11_000));
   await page.getByRole("button", { name: "Send Question" }).click();
 }
 
