@@ -4,6 +4,7 @@ import { api } from "../../../../../../convex/_generated/api";
 import type { Id } from "../../../../../../convex/_generated/dataModel";
 import { isTrustedRequestOrigin } from "@/lib/trusted-request-origin";
 import { fetchAuthQuery, fetchAuthMutation } from "@/lib/auth-server";
+import { logInferenceError } from "@/lib/assistant/inference-error";
 
 const input = z.object({ question: z.string().trim().min(1).max(2000), agentId: z.string().min(1).max(64) }).strict();
 export async function POST(request: Request) {
@@ -28,8 +29,9 @@ export async function POST(request: Request) {
     if (!await fetchAuthQuery(api.assistant.validateSources, { organizationId: scope.organizationId, agentId: body.agentId as Id<"agents">, sources: sources.map(source => ({ id: source._id, updatedAt: source.updatedAt })) })) throw new Error("Source authorization changed");
     await fetchAuthMutation(api.assistantOperations.finishRequest, { ...scope, failed: false, inputTokens: result.usage.inputTokens, outputTokens: result.usage.outputTokens });
     return Response.json({ answer: result.text, sources: sources.map(source => ({ id: source._id, title: source.title, href: `/documents?doc=${encodeURIComponent(source._id)}` })) }, { headers });
-  } catch {
+  } catch (error) {
     await fetchAuthMutation(api.assistantOperations.finishRequest, { ...scope, failed: true }).catch(() => undefined);
-    return Response.json({ error: "The answer could not be generated. Try again, or read the verified sources directly." }, { status: 502, headers });
+    const inferenceError = logInferenceError(error, { route: "ask-answer", trustedRequestId: scope.requestId });
+    return Response.json({ error: inferenceError.message, code: inferenceError.code }, { status: inferenceError.status, headers });
   }
 }
