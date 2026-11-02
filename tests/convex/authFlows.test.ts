@@ -35,7 +35,7 @@ function harness() {
     expect((await call(verification!.url)).status).toBe(302);
     return call("/sign-in/email", { email, password: "test-only-password-123" });
   }
-  return { t, mailbox, cookies, call, signup };
+  return { t, mailbox, cookies, call, signup, nextClient: () => { clientNumber++; } };
 }
 beforeEach(() => {
   process.env.RESEND_API_KEY = "test-only-delivery-credential";
@@ -135,6 +135,51 @@ describe("real Better Auth HTTP lifecycle with an isolated delivery sink", () =>
     expect((await h.call("/two-factor/disable", { password: "test-only-password-123" })).status).toBe(200);
     expect((await h.call("/get-session")).data.user.twoFactorEnabled).toBe(false);
   });
+  test("two-factor HTTP lockout blocks a threshold challenge, expires, and resets after success", async () => {
+    const h = harness();
+    const email = "lockout@example.test";
+    await h.signup(email);
+    const setup = await h.call("/two-factor/enable", { password: "test-only-password-123" });
+    expect(setup.status).toBe(200);
+    const secret = new TextDecoder().decode(base32.decode(new URL(setup.data.totpURI).searchParams.get("secret")!, { padding: false }));
+    expect((await h.call("/two-factor/verify-totp", { code: await createOTP(secret).totp(), trustDevice: false })).status).toBe(200);
+    await h.call("/sign-out", {});
+    const challenge = await h.call("/sign-in/email", { email, password: "test-only-password-123" });
+    expect(challenge.data.twoFactorRedirect).toBe(true);
+
+    const user = await h.t.run(ctx => ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user", where: [{ field: "email", value: email }],
+    }));
+    const twoFactor = await h.t.run(ctx => ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "twoFactor", where: [{ field: "userId", value: user!._id }],
+    }));
+    // Seed nine prior cross-challenge failures; the HTTP request below exercises
+    // Better Auth's threshold increment, lock, denial, expiry, and reset paths.
+    await h.t.run(ctx => ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: { model: "twoFactor", where: [{ field: "_id", value: twoFactor!._id }], update: { failedVerificationCount: 9 } },
+    }));
+    expect((await h.call("/two-factor/verify-totp", { code: "not-a-code", trustDevice: false })).status).toBe(401);
+    const lockedState = await h.t.run(ctx => ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "twoFactor", where: [{ field: "_id", value: twoFactor!._id }],
+    }));
+    expect(lockedState).toMatchObject({ failedVerificationCount: 10 });
+    expect(lockedState!.lockedUntil).toBeGreaterThan(Date.now());
+
+    const locked = await h.call("/two-factor/verify-totp", { code: await createOTP(secret).totp(), trustDevice: false });
+    expect(locked.status).toBe(429);
+    expect(locked.data.code).toBe("ACCOUNT_TEMPORARILY_LOCKED");
+    await h.t.run(ctx => ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: { model: "twoFactor", where: [{ field: "_id", value: twoFactor!._id }], update: { lockedUntil: 1 } },
+    }));
+    // The endpoint has its own per-IP request limit; use a fresh test client
+    // so this request specifically exercises expired-lock handling.
+    h.nextClient();
+    expect((await h.call("/two-factor/verify-totp", { code: await createOTP(secret).totp(), trustDevice: false })).status).toBe(200);
+    const reset = await h.t.run(ctx => ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "twoFactor", where: [{ field: "_id", value: twoFactor!._id }],
+    }));
+    expect(reset).toMatchObject({ failedVerificationCount: 0, lockedUntil: null });
+  });
   test("invitation acceptance checks email, role, revocation and single-use membership", async () => {
     const h = harness(); await h.signup("inviter@example.test");
     const org = (await h.call("/organization/create", { name: "Invite Workspace", slug: "invitation-workspace" })).data;
@@ -156,7 +201,8 @@ describe("real Better Auth HTTP lifecycle with an isolated delivery sink", () =>
     await h.call("/sign-out", {});
     await h.signup("revoked@example.test");
     expect((await h.call("/organization/accept-invitation", { invitationId: revoked.data.id })).status).toBe(400);
-  });
+  // Four real password-hashing signup flows can exceed Vitest's 5s default on shared runners.
+  }, 15_000);
   test("revoking other sessions denies a previously valid cookie", async () => {
     const h = harness(); await h.signup("sessions@example.test");
     const original = new Map(h.cookies);

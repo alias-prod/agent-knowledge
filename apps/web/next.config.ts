@@ -40,6 +40,10 @@ const nextConfig: NextConfig = {
       source: "/:path*",
       headers: [
         { key: "X-Content-Type-Options", value: "nosniff" },
+        // Keep known v0 Preview embedding; never permit arbitrary framing.
+        { key: "Content-Security-Policy", value: process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV === "development"
+          ? "frame-ancestors 'self' https://v0.app https://v0.dev"
+          : "frame-ancestors 'self'" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "Strict-Transport-Security", value: "max-age=63072000" },
       ],
